@@ -1,0 +1,22 @@
+.main-interface {
+    width: 100%;
+    display: flex;
+}
+
+.video-player-wrapper {
+    width: 75%;
+}
+
+.chat-wrapper {
+    width: 25%;
+}
+
+.video-player {
+    width: 100%;
+    height: 100%;
+}
+
+.react-player {
+    width: 100%;
+    height: auto;
+}
