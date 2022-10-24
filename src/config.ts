@@ -5,6 +5,7 @@ export const BASE_URL = "http://localhost:5070/api/";
 export const SIGNALR_CHAT_HUB_SEND_MESSAGE = "SendMessageAsync";
 export const SIGNALR_CHAT_HUB_RECEIVE_MESSAGE = "ReceiveMessage";
 
+export const SIGNALR_VIDEO_HUB_SEND_VIDEO = "SendVideoAsync";
 export const SIGNALR_VIDEO_HUB_SEND_VIDEO_TIMESTAMP = "SendNewVideoTimeStampAsync";
 export const SIGNALR_VIDEO_HUB_SEND_START_VIDEO = "SendStartVideoAsync";
 export const SIGNALR_VIDEO_HUB_SEND_STOP_VIDEO = "SendStopVideoAsync";
