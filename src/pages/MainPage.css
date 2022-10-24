@@ -20,3 +20,48 @@
     width: 100%;
     height: auto;
 }
+
+.fullscreen.main-interface {
+    height: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    object-fit: contain;
+    right: 0;
+    bottom: 0;
+    min-width: 0px;
+    max-width: none;
+    min-height: 0px;
+    max-height: none;
+    transform: none;
+    margin: 0;
+}
+
+.fullscreen .video-player-wrapper {
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    flex-direction: column;
+    width: calc(100% - 0px);
+    margin: 0;
+    position: relative;
+}
+
+.fullscreen .video-player-wrapper .react-player {
+    position:fixed
+}
+
+
+.fullscreen .chat-wrapper {
+    z-index: 2;
+}
+
+.fullscreen-btn
+{
+    display: none;
+}
+
+.fullscreen .fullscreen-btn {
+    display: block;
+}
+

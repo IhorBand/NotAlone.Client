@@ -10,7 +10,7 @@ export interface ChatWindowProps {
 
 const ChatWindow = (props : ChatWindowProps) => {
     const chat = props.chatMessages
-        .map(m => <Message 
+        .reverse().map(m => <Message 
             key={Date.now() * Math.random()}
             userId={m.userId}
             userName={m.userName}

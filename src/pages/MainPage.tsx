@@ -18,6 +18,7 @@ const MainPageComponent = () => {
     const [ accessToken, setAccessToken ] = useState<string>("");
     const [ currentVideoId, setCurrentVideoId ] = useState<string>("00000000-0000-0000-0000-000000000000");
     const [ mastersCurrentTimeStamp, setMastersCurrentTimeStamp ] = useState<number>(0);
+    const [ isFullscreen, setIsFullscreen ] = useState<boolean>(false);
     const playerRef = useRef<HTMLVideoElement>(null);
     const mainVideoUrl = useRef<HTMLInputElement>(null);
     const mainVideoName = useRef<HTMLInputElement>(null);
@@ -31,6 +32,13 @@ const MainPageComponent = () => {
         if(tokenModel && tokenModel.token && tokenModel.token !== "") {
             setAccessToken(tokenModel.token);
         }
+        
+        document.addEventListener("keydown", (e) =>{
+            console.log(e.key);
+            if (e.key === "Escape") {
+                setIsFullscreen(false);
+            }
+        }, false);
     }, []);
 
     useEffect(() => {
@@ -201,9 +209,19 @@ const MainPageComponent = () => {
         }
     }
 
+    const onFullscreenClick = () => {
+        if(isFullscreen) {
+            document.exitFullscreen();
+            setIsFullscreen(false);
+        } else {
+            setIsFullscreen(true);
+            document.body.requestFullscreen();
+        }
+    }
+
     return (
         <>
-            <div className='main-interface'>
+            <div className={ (isFullscreen ? "fullscreen" : "") + " main-interface"}>
                 <div className='video-player-wrapper'>
                     <ReactHlsPlayer
                         playerRef={playerRef}
@@ -218,7 +236,11 @@ const MainPageComponent = () => {
                 </div>
                 <div className='chat-wrapper'>
                     <Chat />
+                    <button className='fullscreen-btn' onClick={onFullscreenClick}>Fullscreen</button>
                 </div>
+            </div>
+            <div>
+                <button onClick={onFullscreenClick}>FullScreen</button>
             </div>
 
             { isMaster() ?
