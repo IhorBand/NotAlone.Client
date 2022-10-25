@@ -5,20 +5,27 @@ import ReactHlsPlayer from "react-hls-player";
 import Chat from '../components/Chat/Chat';
 import { getTokenFromStorage, isMaster, isMaster as isRomchik } from '../api/TokenStorageService';
 import { HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
-import { BASE_CHAT_HUB_URL, BASE_VIDEO_HUB_URL, SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO, SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO_QUALITY, SIGNALR_VIDEO_HUB_RECEIVE_START_VIDEO, SIGNALR_VIDEO_HUB_RECEIVE_STOP_VIDEO, SIGNALR_VIDEO_HUB_RECEIVE_VIDEO_TIMESTAMP, SIGNALR_VIDEO_HUB_SEND_START_VIDEO, SIGNALR_VIDEO_HUB_SEND_STOP_VIDEO, SIGNALR_VIDEO_HUB_SEND_VIDEO, SIGNALR_VIDEO_HUB_SEND_VIDEO_TIMESTAMP } from '../config';
+import { BASE_CHAT_HUB_URL, BASE_VIDEO_HUB_URL, SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO, 
+    SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO_QUALITY, SIGNALR_VIDEO_HUB_RECEIVE_START_VIDEO, 
+    SIGNALR_VIDEO_HUB_RECEIVE_STOP_VIDEO, SIGNALR_VIDEO_HUB_RECEIVE_VIDEO_TIMESTAMP, 
+    SIGNALR_VIDEO_HUB_SEND_START_VIDEO, SIGNALR_VIDEO_HUB_SEND_STOP_VIDEO, 
+    SIGNALR_VIDEO_HUB_SEND_VIDEO, SIGNALR_VIDEO_HUB_SEND_VIDEO_TIMESTAMP } from '../config';
 import { VideoModel } from '../models/Video/VideoModel';
 import { VideoQualityModel } from '../models/Video/VideoQualityModel';
 import { VideoTimeStampModel } from '../models/Video/VideoTimeStampModel';
+import { getAllVideos, getQualitiesByVideoId } from '../api/VideoService';
 
 const MainPageComponent = () => {
-    //https://stream.voidboost.cc/5d22d33a5c1709150230ad2ad4c49359:2022102512:f4556a98-f257-468b-a693-f8aceb207d1f/6/8/1/1/6/4/orwbk.mp4:hls:manifest.m3u8
     const [ hlsUrl, setHlsUrl ] = useState<string>("https://stream.voidboost.cc/97bf54d7b84d90cf55207dfcdf6f3dd7:2022102512:d952760f-c287-49d2-994d-41d7521ed04a/2/2/6/2/6/8/2q342.mp4:hls:manifest.m3u8");
+    const [ videos, setVideos ] = useState<VideoModel[]>([]);
+    const [ qualities, setQualities ] = useState<VideoQualityModel[]>([]); 
     const [ updateTimeIntervalId, setUpdateTimeIntervalId ] = useState<NodeJS.Timer>();
     const [ connection, setConnection ] = useState<HubConnection>();
     const [ accessToken, setAccessToken ] = useState<string>("");
     const [ currentVideoId, setCurrentVideoId ] = useState<string>("00000000-0000-0000-0000-000000000000");
     const [ mastersCurrentTimeStamp, setMastersCurrentTimeStamp ] = useState<number>(0);
     const [ isFullscreen, setIsFullscreen ] = useState<boolean>(false);
+    const [ isHls, setIsHls ] = useState<boolean>(false);
     const playerRef = useRef<HTMLVideoElement>(null);
     const mainVideoUrl = useRef<HTMLInputElement>(null);
     const mainVideoName = useRef<HTMLInputElement>(null);
@@ -32,13 +39,17 @@ const MainPageComponent = () => {
         if(tokenModel && tokenModel.token && tokenModel.token !== "") {
             setAccessToken(tokenModel.token);
         }
-        
-        document.addEventListener("keydown", (e) =>{
-            console.log(e.key);
-            if (e.key === "Escape") {
-                setIsFullscreen(false);
-            }
-        }, false);
+
+        getAllVideos().then((response) => {
+            let videoModels = response.data as VideoModel[];
+            setVideos(videoModels);
+            videoModels.map((video, i) => {
+                getQualitiesByVideoId(video.id).then((response) => {
+                    let videoQualitiesModels = response.data as VideoQualityModel[];
+                    setQualities([...qualities, response.data]);
+                });
+            });
+        });
     }, []);
 
     useEffect(() => {
@@ -219,6 +230,12 @@ const MainPageComponent = () => {
         }
     }
 
+    const isHlsHdRezkaOnChange = () => {
+        if(isHlsHdRezka && isHlsHdRezka.current) {
+            setIsHls(isHlsHdRezka.current.checked);
+        }
+    }
+
     return (
         <>
             <div className={ (isFullscreen ? "fullscreen" : "") + " main-interface"}>
@@ -236,23 +253,36 @@ const MainPageComponent = () => {
                 </div>
                 <div className='chat-wrapper'>
                     <Chat />
-                    <button className='fullscreen-btn' onClick={onFullscreenClick}>Fullscreen</button>
                 </div>
             </div>
             <div>
-                <button onClick={onFullscreenClick}>FullScreen</button>
+                <button className="js-toggle-fullscreen-btn toggle-fullscreen-btn" aria-label="Enter fullscreen mode" onClick={onFullscreenClick}>
+                        <svg className="toggle-fullscreen-svg" width="28" height="28" viewBox="-2 -2 28 28">
+                            <g className="icon-fullscreen-enter">
+                                <path d="M 2 9 v -7 h 7" />
+                                <path d="M 22 9 v -7 h -7" />
+                                <path d="M 22 15 v 7 h -7" />
+                                <path d="M 2 15 v 7 h 7" />
+                            </g>
+                            
+                            <g className="icon-fullscreen-leave">
+                                <path d="M 24 17 h -7 v 7" />
+                                <path d="M 0 17 h 7 v 7" />
+                                <path d="M 0 7 h 7 v -7" />
+                                <path d="M 24 7 h -7 v -7" />
+                            </g>
+                        </svg>
+                    </button>   
             </div>
 
             { isMaster() ?
-            <div>
-                <label htmlFor="mainVideoUrl">Main Video Url { isHlsHdRezka && isHlsHdRezka.current && isHlsHdRezka.current.checked ? "HLS(m3u8)" : "MP4" }:</label>
+            <div className={(isFullscreen ? 'hidden' : '') + ' master-controls-wrapper'}>
+                <label htmlFor="mainVideoUrl">Main Video Url { isHls ? "HLS(m3u8)" : "MP4" }:</label>
                 <input 
                     type="text"
                     id="mainVideoUrl"
                     name="mainVideoUrl"
                     ref={mainVideoUrl} />
-                <br />
-                <br />
 
                 <label htmlFor="mainVideoName">Main Video Name:</label>
                 <input 
@@ -260,8 +290,6 @@ const MainPageComponent = () => {
                     id="mainVideoName"
                     name="mainVideoName"
                     ref={mainVideoName} />
-                <br />
-                <br />
 
                 <label htmlFor="isHlsHdRezka">Is Hls HdRezka:</label>
                 <input
@@ -269,14 +297,23 @@ const MainPageComponent = () => {
                     id="isHlsHdRezka"
                     name="isHlsHdRezka"
                     ref={isHlsHdRezka}
+                    onChange={isHlsHdRezkaOnChange}
                     />
-                <br />
 
                 <button onClick={onChangeMainVideo}>Submit</button>
             </div>
             :
             ""
             }
+
+            <div className='video-playlist'>
+            { videos.map((video, i) => {                 
+                return (
+                <div className='video-playlist-item'>
+                    
+                </div>) 
+            })}
+            </div>
         </>
     )
 };

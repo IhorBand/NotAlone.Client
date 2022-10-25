@@ -4,10 +4,14 @@ import { MessageModel } from '../../models/MessageModel';
 
 const MessageComponent = (props: MessageModel) => {
     return (
-        <div style={{ background: "#eee", borderRadius: '5px', padding: '0 10px' }}>
-            <p><strong>{props.userName}</strong>:</p>
-            <br />
-            <p>{props.message}</p>
+        <div className='message-item'>
+            <div className='user-avatar-wrapper'>
+                <img className='user-avatar' src="https://static8.tgstat.ru/channels/_0/90/908e7729970bbb8837e0f4e5e83b15da.jpg" />
+            </div>
+            <div className='user-info'>
+                <div className='user-name'>{props.userName}</div>
+                <div className='user-message'>{props.message}</div>
+            </div>
         </div>
     )
 };

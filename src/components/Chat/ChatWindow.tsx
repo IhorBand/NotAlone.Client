@@ -16,7 +16,7 @@ const ChatWindow = (props : ChatWindowProps) => {
             userName={m.userName}
             message={m.message}/>);
     return(
-        <div>
+        <div className='message-list'>
             {chat}
         </div>
     )

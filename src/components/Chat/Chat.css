@@ -1,0 +1,19 @@
+.chat-interface {
+    display: flex;
+    flex-direction: column-reverse;
+    /* max-height: 700px; */
+    height: 100%;
+    overflow: scroll;
+    overflow-x: hidden;
+    background-image: url(https://notalone.tv/images/bgChat/chat-bg-fall.jpg);
+    background-position: center bottom;
+    background-color: #2a2b30;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-radius: 15px;
+}
+
+.fullscreen .chat-interface {
+    background: transparent;
+}

@@ -84,7 +84,7 @@ const Chat = () => {
 
     return (
         <>
-            <div>
+            <div className='chat-interface'>
                 <ChatInput onSendMessage={onSendMessage} />
                 <hr />
                 <ChatWindow chatMessages={chatMessages}/>

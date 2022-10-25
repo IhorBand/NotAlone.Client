@@ -7,7 +7,7 @@ export interface ChatInputProps {
 }
 
 const ChatInputComponent = (props: ChatInputProps) => {
-    const message = useRef<HTMLInputElement>(null);
+    const message = useRef<HTMLTextAreaElement>(null);
 
     const onSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,16 +24,13 @@ const ChatInputComponent = (props: ChatInputProps) => {
 
     return (
         <form 
-            onSubmit={onSubmit}>
-            <label htmlFor="message">Message:</label>
-            <br />
-            <input 
-                type="text"
+            onSubmit={onSubmit} className="text-message-input-wrapper">
+            <textarea 
+                className="text-message-input"
                 id="message"
                 name="message"
                 ref={message} />
-            <br/><br/>
-            <button>Submit</button>
+            <button className="send-message-btn"></button>
         </form>
     )
 };
