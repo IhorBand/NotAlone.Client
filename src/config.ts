@@ -10,6 +10,14 @@ export const SIGNALR_CHAT_HUB_SEND_MESSAGE = "SendMessageAsync";
 export const SIGNALR_CHAT_HUB_RECEIVE_MESSAGE = "ReceiveMessage";
 
 /*
+    In: int avatarId
+    out:  int avatarId, string UserId, string UserName 
+*/
+export const SIGNALR_CHAT_HUB_SEND_CHANGE_AVATAR = "SendChangeAvatarAsync";
+export const SIGNALR_CHAT_HUB_RECEIVE_CHANGE_AVATAR = "ReceiveChangeAvatarAsync"
+
+
+/*
     In: string name
     out: VideoModel
 */
@@ -43,3 +51,10 @@ export const SIGNALR_VIDEO_HUB_RECEIVE_START_VIDEO = "ReceiveStartVideo";
 */
 export const SIGNALR_VIDEO_HUB_SEND_STOP_VIDEO = "SendStopVideoAsync";
 export const SIGNALR_VIDEO_HUB_RECEIVE_STOP_VIDEO = "ReceiveStopVideo";
+
+/*
+    In: string videoId, string timestamp
+    out: VideoTimeStampModel
+*/
+export const SIGNALR_VIDEO_HUB_SEND_USER_STATUS = "SendUserStatusAsync";
+export const SIGNALR_VIDEO_HUB_RECEIVE_USER_STATUS = "ReceiveUserStatus";
