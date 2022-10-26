@@ -1,6 +1,6 @@
-export const BASE_CHAT_HUB_URL = "http://localhost:5070/hubs/chathub";
-export const BASE_VIDEO_HUB_URL = "http://localhost:5070/hubs/videohub";
-export const BASE_URL = "http://localhost:5070/api/";
+export const BASE_CHAT_HUB_URL = "http://151.236.221.211:5005/hubs/chathub";
+export const BASE_VIDEO_HUB_URL = "http://151.236.221.211:5005/hubs/videohub";
+export const BASE_URL = "http://151.236.221.211:5005/api/";
 
 /*
     In: string message
@@ -51,7 +51,7 @@ export const SIGNALR_VIDEO_HUB_RECEIVE_START_VIDEO = "ReceiveStartVideo";
 */
 export const SIGNALR_VIDEO_HUB_SEND_STOP_VIDEO = "SendStopVideoAsync";
 export const SIGNALR_VIDEO_HUB_RECEIVE_STOP_VIDEO = "ReceiveStopVideo";
-
+    
 /*
     In: string videoId, string timestamp
     out: VideoTimeStampModel

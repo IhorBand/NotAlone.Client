@@ -42,11 +42,13 @@ const MainPageComponent = () => {
 
         getAllVideos().then((response) => {
             let videoModels = response.data as VideoModel[];
+            console.log(videoModels);
             setVideos(videoModels);
             videoModels.map((video, i) => {
-                getQualitiesByVideoId(video.id).then((response) => {
-                    let videoQualitiesModels = response.data as VideoQualityModel[];
-                    setQualities([...qualities, response.data]);
+                getQualitiesByVideoId(video.id).then((innerResponse) => {
+                    let videoQualitiesModels = innerResponse.data as VideoQualityModel[];
+                    console.log(videoQualitiesModels)
+                    setQualities([...qualities, ...videoQualitiesModels]);
                 });
             });
         });
@@ -70,7 +72,7 @@ const MainPageComponent = () => {
                         console.log(message as VideoModel);
                         // need to add element to array for both(master and slaves) and update component !!!!!
                         let model = message as VideoModel;
-                        setHlsUrl(model.url);
+                        setHlsUrl('');//TODO:videoURL
                     });
 
                     connection.on(SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO_QUALITY, message => {
@@ -230,6 +232,10 @@ const MainPageComponent = () => {
         }
     }
 
+    const onVideoQualityClick = (qualityId: string) => {
+        console.log(qualityId);
+    }
+
     const isHlsHdRezkaOnChange = () => {
         if(isHlsHdRezka && isHlsHdRezka.current) {
             setIsHls(isHlsHdRezka.current.checked);
@@ -309,10 +315,18 @@ const MainPageComponent = () => {
             <div className='video-playlist'>
             { videos.map((video, i) => {                 
                 return (
-                <div className='video-playlist-item'>
-                    
-                </div>) 
-            })}
+                <div key={video.id} className='video-playlist-item'>
+                    <div className='video-name'>{video.name}</div>
+                        <div className='video-quality-list'>
+                        { qualities.map((quality, i) => {
+                        if(quality.videoId == video.id) return (    
+                            <div key={quality.id} className='video-quality-item' onClick={(e) => onVideoQualityClick(quality.id) }>
+                                <div className='video-quality-name'>{quality.name}</div>
+                            </div>
+                        )})}
+                    </div>
+                </div>
+                )})}
             </div>
         </>
     )

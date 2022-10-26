@@ -8,6 +8,6 @@ export const getAllVideos = async () => {
 };
 
 export const getQualitiesByVideoId = async (videoId: string) => {
-	const response = await Api.post(`Videos/${videoId}/Qualities`);
+	const response = await Api.get(`Video/${videoId}/Qualities?videoId=${videoId}`);
 	return response;
 };
