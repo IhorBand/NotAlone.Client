@@ -1,5 +1,3 @@
-import { AuthorizationModel } from "../models/Auth/AuthorizationModel";
-import { RefreshTokenModel } from "../models/Auth/RefreshTokenModel";
 import Api from "./api";
 
 export const getAllVideos = async () => {
@@ -8,6 +6,11 @@ export const getAllVideos = async () => {
 };
 
 export const getQualitiesByVideoId = async (videoId: string) => {
-	const response = await Api.get(`Video/${videoId}/Qualities?videoId=${videoId}`);
+	const response = await Api.get(`Video/${videoId}/Qualities`);
+	return response;
+};
+
+export const getAllQualities = async () => {
+	const response = await Api.get(`Video/Qualities`);
 	return response;
 };

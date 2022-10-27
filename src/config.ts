@@ -2,6 +2,8 @@ export const BASE_CHAT_HUB_URL = "http://151.236.221.211:5005/hubs/chathub";
 export const BASE_VIDEO_HUB_URL = "http://151.236.221.211:5005/hubs/videohub";
 export const BASE_URL = "http://151.236.221.211:5005/api/";
 
+export const HD_REZKA_M3U8_PREFIX = ":hls:manifest.m3u8";
+
 /*
     In: string message
     out: MessageModel

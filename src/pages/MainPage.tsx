@@ -1,35 +1,49 @@
 import './MainPage.css';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, SyntheticEvent } from 'react';
 import ReactHlsPlayer from "react-hls-player";
 import Chat from '../components/Chat/Chat';
 import { getTokenFromStorage, isMaster, isMaster as isRomchik } from '../api/TokenStorageService';
 import { HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
-import { BASE_CHAT_HUB_URL, BASE_VIDEO_HUB_URL, SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO, 
+import { BASE_CHAT_HUB_URL, BASE_VIDEO_HUB_URL, HD_REZKA_M3U8_PREFIX, SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO, 
     SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO_QUALITY, SIGNALR_VIDEO_HUB_RECEIVE_START_VIDEO, 
     SIGNALR_VIDEO_HUB_RECEIVE_STOP_VIDEO, SIGNALR_VIDEO_HUB_RECEIVE_VIDEO_TIMESTAMP, 
     SIGNALR_VIDEO_HUB_SEND_START_VIDEO, SIGNALR_VIDEO_HUB_SEND_STOP_VIDEO, 
-    SIGNALR_VIDEO_HUB_SEND_VIDEO, SIGNALR_VIDEO_HUB_SEND_VIDEO_TIMESTAMP } from '../config';
+    SIGNALR_VIDEO_HUB_SEND_VIDEO, SIGNALR_VIDEO_HUB_SEND_VIDEO_QUALITY, SIGNALR_VIDEO_HUB_SEND_VIDEO_TIMESTAMP } from '../config';
 import { VideoModel } from '../models/Video/VideoModel';
 import { VideoQualityModel } from '../models/Video/VideoQualityModel';
 import { VideoTimeStampModel } from '../models/Video/VideoTimeStampModel';
-import { getAllVideos, getQualitiesByVideoId } from '../api/VideoService';
+import { getAllQualities, getAllVideos, getQualitiesByVideoId } from '../api/VideoService';
 
 const MainPageComponent = () => {
-    const [ hlsUrl, setHlsUrl ] = useState<string>("https://stream.voidboost.cc/97bf54d7b84d90cf55207dfcdf6f3dd7:2022102512:d952760f-c287-49d2-994d-41d7521ed04a/2/2/6/2/6/8/2q342.mp4:hls:manifest.m3u8");
+    const [ currentVideoUrl, setCurrentVideoUrl ] = useState<string>("");
     const [ videos, setVideos ] = useState<VideoModel[]>([]);
     const [ qualities, setQualities ] = useState<VideoQualityModel[]>([]); 
     const [ updateTimeIntervalId, setUpdateTimeIntervalId ] = useState<NodeJS.Timer>();
     const [ connection, setConnection ] = useState<HubConnection>();
     const [ accessToken, setAccessToken ] = useState<string>("");
     const [ currentVideoId, setCurrentVideoId ] = useState<string>("00000000-0000-0000-0000-000000000000");
+    const [ currentVideoQualityId, setCurrentVideoQualityId ] = useState<string>("00000000-0000-0000-0000-000000000000");
     const [ mastersCurrentTimeStamp, setMastersCurrentTimeStamp ] = useState<number>(0);
     const [ isFullscreen, setIsFullscreen ] = useState<boolean>(false);
-    const [ isHls, setIsHls ] = useState<boolean>(false);
     const playerRef = useRef<HTMLVideoElement>(null);
-    const mainVideoUrl = useRef<HTMLInputElement>(null);
-    const mainVideoName = useRef<HTMLInputElement>(null);
+
+    const videoNameTxt = useRef<HTMLInputElement>(null);
+
+    const addVideoQualitySelectVideoDDL = useRef<HTMLSelectElement>(null);
+    const videoQualityNameTxt = useRef<HTMLInputElement>(null);
+    const videoQualityUrlTxt = useRef<HTMLInputElement>(null);
     const isHlsHdRezka = useRef<HTMLInputElement>(null);
+
+
+    // TempWorkAround
+    const [onReceiveStartVideoData, setOnReceiveStartVideoData] = useState<VideoTimeStampModel>();
+    useEffect(() => {
+        if(onReceiveStartVideoData) {
+            onReceiveStartVideo(onReceiveStartVideoData);
+        }
+    }, [onReceiveStartVideoData]);
+
 
     const updateUsersTimeStampIntervalSec = 4;
     const updateUsersTimeStampIntervalMs = updateUsersTimeStampIntervalSec*1000;
@@ -44,13 +58,12 @@ const MainPageComponent = () => {
             let videoModels = response.data as VideoModel[];
             console.log(videoModels);
             setVideos(videoModels);
-            videoModels.map((video, i) => {
-                getQualitiesByVideoId(video.id).then((innerResponse) => {
-                    let videoQualitiesModels = innerResponse.data as VideoQualityModel[];
-                    console.log(videoQualitiesModels)
-                    setQualities([...qualities, ...videoQualitiesModels]);
-                });
-            });
+        });
+
+        getAllQualities().then((response) => {
+            let videoQualitiesModels = response.data as VideoQualityModel[];
+            console.log(videoQualitiesModels)
+            setQualities(videoQualitiesModels);
         });
     }, []);
 
@@ -69,55 +82,40 @@ const MainPageComponent = () => {
                     connection.on(SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO, message => {
                         console.log("New Video!");
                         console.log(message);
-                        console.log(message as VideoModel);
-                        // need to add element to array for both(master and slaves) and update component !!!!!
                         let model = message as VideoModel;
-                        setHlsUrl('');//TODO:videoURL
+                        console.log(model);
+                        onReceiveNewVideo(model);
                     });
 
                     connection.on(SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO_QUALITY, message => {
                         console.log("New Video Quality!");
                         console.log(message);
-                        console.log(message as VideoQualityModel);
-                        // need to add element to array for both(master and slaves) and update component !!!!!
+                        let model = message as VideoQualityModel;
+                        console.log(model);
+                        onReceiveNewVideoQuality(model);
                     });
 
                     connection.on(SIGNALR_VIDEO_HUB_RECEIVE_VIDEO_TIMESTAMP, message => {
                         console.log("New Time!");
                         console.log(message);
-                        console.log(message as VideoTimeStampModel);
-                        if(!isRomchik()) {
-                            let model = message as VideoTimeStampModel;
-                            if(model.timeStamp) {
-                                let mastersTimeStamp = Number(model.timeStamp);
-                                setMastersCurrentTimeStamp(mastersTimeStamp);
-                                if(playerRef && playerRef.current 
-                                    && (((mastersTimeStamp - playerRef.current.currentTime >= (updateUsersTimeStampIntervalSec/1000)) || (mastersTimeStamp - playerRef.current.currentTime <= -1 * (updateUsersTimeStampIntervalSec/1000)))
-                                        || model.isForce)) {
-                                    playerRef.current.currentTime = mastersTimeStamp;
-                                }
-                            }
-                        }
+                        let model = message as VideoTimeStampModel;
+                        console.log(model);
+                        onReceiveNewTimeStamp(model);
                     });
 
-                    connection.on(SIGNALR_VIDEO_HUB_RECEIVE_START_VIDEO, message => {
+                    connection.on(SIGNALR_VIDEO_HUB_RECEIVE_START_VIDEO, (message) => {
                         console.log("Play!");
                         console.log(message);
-                        console.log(message as VideoTimeStampModel);
-                        playVideo(false);
+                        console.log(qualities);
+                        let model = message as VideoTimeStampModel;
+                        setOnReceiveStartVideoData(model);
                     });
 
                     connection.on(SIGNALR_VIDEO_HUB_RECEIVE_STOP_VIDEO, (message) => {
                         console.log("Pause!");
-                        console.log(message as VideoTimeStampModel);
-                        if(!isRomchik()) {
-                            if (playerRef && playerRef.current) {
-                                let model = message as VideoTimeStampModel;
-                                console.log("set new time: " + model.timeStamp);
-                                playerRef.current.currentTime = Number(model.timeStamp);
-                            }
-                            pauseVideo();
-                        }
+                        let model = message as VideoTimeStampModel;
+                        console.log(model);
+                        onReceiveStopVideo(model);
                     });
                 })
                 .catch(e => {
@@ -126,6 +124,85 @@ const MainPageComponent = () => {
                 });
         }
     }, [connection]);
+
+    //Receive
+
+    const onReceiveNewVideo = (model: VideoModel) => {
+        setVideos(vs => [...vs, model]);
+    }
+
+    const onReceiveNewVideoQuality = (model: VideoQualityModel) => {
+        setQualities(qs => [...qs, model]);
+    }
+
+    const onReceiveNewTimeStamp = (model: VideoTimeStampModel) => {
+        if(!isRomchik()) {
+            if(model.timeStamp) {
+                let mastersTimeStamp = Number(model.timeStamp);
+                setMastersCurrentTimeStamp(mastersTimeStamp);
+                if(playerRef && playerRef.current 
+                    && (((mastersTimeStamp - playerRef.current.currentTime >= (updateUsersTimeStampIntervalSec/1000)) || (mastersTimeStamp - playerRef.current.currentTime <= -1 * (updateUsersTimeStampIntervalSec/1000)))
+                        || model.isForce)) {
+                    playerRef.current.currentTime = mastersTimeStamp;
+                }
+            }
+        }
+    }
+
+    const onReceiveStartVideo = (model: VideoTimeStampModel) => {
+        //TODO: in case of lags try not to udpate TimeStamp
+        if(playerRef && playerRef.current) {
+            //Roma already selected quality and video, so there is no need to set default values for him
+            let isNeedToUpdateTimeStamp = true;
+            if(!isRomchik()) {
+                setCurrentVideoId(model.videoId);
+                
+                let isCurrentlyInUse = false;
+                let minQuality = new VideoQualityModel();
+                minQuality.id = "00000000-0000-0000-0000-000000000000";
+                minQuality.name = "0";
+                for(let i=0; i < qualities.length; i++) {
+                    if(qualities[i].videoId == model.videoId) {
+                        let minQualityNum = Number(minQuality.name);
+                        let curQualityNum = Number(qualities[i].name);
+                        if(!isNaN(minQualityNum) && !isNaN(curQualityNum)){
+                            if(minQualityNum < curQualityNum){
+                                minQuality = qualities[i];
+                            }
+                        } else {
+                            minQuality = qualities[i];
+                        }
+
+                        if(qualities[i].url == playerRef.current.src){
+                            isCurrentlyInUse = true;
+                            break;
+                        }
+                    }
+                }
+                console.log(isCurrentlyInUse);
+                console.log(minQuality);
+                if(isCurrentlyInUse == false) {
+                    setCurrentVideoQualityId(q => minQuality.id);
+                    setCurrentVideoUrl(v => minQuality.url);
+                    isNeedToUpdateTimeStamp = true;
+                } else {
+                    isNeedToUpdateTimeStamp = false;
+                }
+            }
+
+            playVideo(model, isNeedToUpdateTimeStamp);
+        }
+    }
+
+    const onReceiveStopVideo = (model: VideoTimeStampModel) => {
+        if(!isRomchik()) {
+            if (playerRef && playerRef.current) {
+                console.log("set new time: " + model.timeStamp);
+                playerRef.current.currentTime = Number(model.timeStamp);
+            }
+            pauseVideo();
+        }
+    }
 
     const ConnectToHub = () => {
         const newConnection = new HubConnectionBuilder()
@@ -146,17 +223,18 @@ const MainPageComponent = () => {
 
     const updateVideoTimeForClients = () => {
         console.log(playerRef.current);
-        if(playerRef.current && connection) {
+        if(playerRef.current && connection && connection.state == HubConnectionState.Connected) {
             console.log(playerRef.current.currentTime);
             connection.send(SIGNALR_VIDEO_HUB_SEND_VIDEO_TIMESTAMP, currentVideoId, playerRef.current.currentTime.toString(), false);
         } 
     }
 
-    const playVideo = async (isNeedToUpdateTimeStamp: boolean = true) => {
+    const playVideo = async (videoTimeStamp: VideoTimeStampModel, isNeedToUpdateTimeStamp: boolean = true) => {
         if(playerRef && playerRef.current)
         {
-            if(isNeedToUpdateTimeStamp && !isRomchik()) {
-                playerRef.current.currentTime = mastersCurrentTimeStamp; 
+            if(isNeedToUpdateTimeStamp) {
+                let timeStamp = Number(videoTimeStamp.timeStamp);
+                playerRef.current.currentTime = timeStamp; 
                 console.log(playerRef.current.currentTime);
             }
             
@@ -164,18 +242,23 @@ const MainPageComponent = () => {
         }
     }
 
-    const onPlayVideo = () => {
+    const onPlayVideo = (e: SyntheticEvent<HTMLVideoElement, Event>) => {
+        e.preventDefault();
         if(playerRef && playerRef.current)
         {
-            if(connection && isRomchik()) {
+            if(connection && connection.state == HubConnectionState.Connected && isRomchik()) {
                 let videoId = currentVideoId;
                 let timestamp = playerRef.current.currentTime.toString();
                 connection.send(SIGNALR_VIDEO_HUB_SEND_START_VIDEO, videoId, timestamp);
-                const myInterval = setInterval(() => {
-                    updateVideoTimeForClients();
-                }, updateUsersTimeStampIntervalMs);
-
-                setUpdateTimeIntervalId(myInterval);
+                if(isRomchik()) {
+                    const myInterval = setInterval(() => {
+                        updateVideoTimeForClients();
+                    }, updateUsersTimeStampIntervalMs);
+    
+                    setUpdateTimeIntervalId(myInterval);
+                }
+            } else if(!isRomchik()) {
+                e.preventDefault();
             }
         }
     }
@@ -184,41 +267,30 @@ const MainPageComponent = () => {
         if(playerRef && playerRef.current)
         {
             playerRef.current.pause();
-            if(connection && isRomchik()) {
-                let videoId = currentVideoId;
-                let timestamp = playerRef.current.currentTime.toString();
-                clearInterval(updateTimeIntervalId);
-                connection.send(SIGNALR_VIDEO_HUB_SEND_STOP_VIDEO, videoId, timestamp);
-            }
         }
     }
 
-    const onPauseVideo = () => {
-        pauseVideo();
+    const onPauseVideo = (e: SyntheticEvent<HTMLVideoElement, Event>) => {
+        if(connection && connection.state == HubConnectionState.Connected && playerRef && playerRef.current && isRomchik()) {
+            let videoId = currentVideoId;
+            let timestamp = playerRef.current.currentTime.toString();
+            clearInterval(updateTimeIntervalId);
+            connection.send(SIGNALR_VIDEO_HUB_SEND_STOP_VIDEO, videoId, timestamp);
+            playerRef.current.pause();
+        } else if(!isRomchik()) {
+            e.preventDefault();
+        }
     }
 
-    const onSeeked = () => {
-        if(connection && isRomchik()) {
+    const onSeeked = (e: SyntheticEvent<HTMLVideoElement, Event>) => {
+        if(connection && connection.state == HubConnectionState.Connected && isRomchik()) {
             if(playerRef && playerRef.current) {
                 let videoId = currentVideoId;
                 let timestamp = playerRef.current.currentTime.toString();
                 connection.send(SIGNALR_VIDEO_HUB_SEND_VIDEO_TIMESTAMP, videoId, timestamp, true);
             }
-        }
-    }
-
-    const onChangeMainVideo = () => {
-        if(connection && connection.state == HubConnectionState.Connected 
-            && mainVideoUrl && mainVideoUrl.current && mainVideoUrl.current.value
-            && mainVideoName && mainVideoName.current && mainVideoName.current.value
-            && isHlsHdRezka && isHlsHdRezka.current
-            && isRomchik()) {
-            let URL = mainVideoUrl.current.value;
-            let name = mainVideoName.current.value;
-            if (isHlsHdRezka.current.checked) {
-                URL += ":hls:manifest.m3u8";
-            }
-            connection.send(SIGNALR_VIDEO_HUB_SEND_VIDEO, URL, name);
+        } else if(!isRomchik()) {
+            e.preventDefault();
         }
     }
 
@@ -232,15 +304,55 @@ const MainPageComponent = () => {
         }
     }
 
-    const onVideoQualityClick = (qualityId: string) => {
-        console.log(qualityId);
-    }
-
-    const isHlsHdRezkaOnChange = () => {
-        if(isHlsHdRezka && isHlsHdRezka.current) {
-            setIsHls(isHlsHdRezka.current.checked);
+    const onAddVideoClick = () => {
+        if(isRomchik() && connection && connection.state == HubConnectionState.Connected
+            && videoNameTxt && videoNameTxt.current && videoNameTxt.current.value) {
+            connection.send(SIGNALR_VIDEO_HUB_SEND_VIDEO, videoNameTxt.current.value);
         }
     }
+
+    const onAddVideoQualityClick = () => {
+        if(isRomchik() && connection && connection.state == HubConnectionState.Connected
+        && videoQualityNameTxt && videoQualityNameTxt.current && videoQualityNameTxt.current.value
+        && videoQualityUrlTxt && videoQualityUrlTxt.current && videoQualityUrlTxt.current.value
+        && addVideoQualitySelectVideoDDL && addVideoQualitySelectVideoDDL.current && addVideoQualitySelectVideoDDL.current.value
+        && isHlsHdRezka && isHlsHdRezka.current) {
+            let checkQualityName = Number(videoQualityNameTxt.current.value);
+            if(!isNaN(checkQualityName)) {
+                let url = videoQualityUrlTxt.current.value;
+                if (isHlsHdRezka.current.checked) {
+                    url += HD_REZKA_M3U8_PREFIX;
+                }
+                connection.send(SIGNALR_VIDEO_HUB_SEND_VIDEO_QUALITY, addVideoQualitySelectVideoDDL.current.value, url, videoQualityNameTxt.current.value);
+            } else {
+                alert("Quality Name must be a number(1234567890)");
+            }
+        }
+    }
+
+    const onVideoQualityClick = (quality: VideoQualityModel) => {
+        if(playerRef && playerRef.current) {
+            //if Roma -> send selected video to all other persons and to Roma to play video
+            if(isRomchik() && connection && connection.state == HubConnectionState.Connected && quality) {
+                let currentTimeStamp = playerRef.current.currentTime;
+                setCurrentVideoUrl(quality.url);
+                playerRef.current.currentTime = currentTimeStamp;
+                playerRef.current.pause();
+                setCurrentVideoId(quality.videoId);
+                setCurrentVideoQualityId(quality.id);
+                connection.send(SIGNALR_VIDEO_HUB_SEND_START_VIDEO, quality.videoId, "0");
+            } else if(!isRomchik()) {
+                //if not Roma -> change quality
+                if(quality.videoId == currentVideoId) {
+                    let currentTimeStamp = playerRef.current.currentTime;
+                    setCurrentVideoUrl(quality.url);
+                    playerRef.current.currentTime = currentTimeStamp;
+                    playerRef.current.play();
+                }
+            }
+        }
+    }
+
 
     return (
         <>
@@ -248,7 +360,7 @@ const MainPageComponent = () => {
                 <div className='video-player-wrapper'>
                     <ReactHlsPlayer
                         playerRef={playerRef}
-                        src={hlsUrl}
+                        src={currentVideoUrl}
                         controls={true}
                         className="react-player"
                         onPlay={onPlayVideo}
@@ -282,31 +394,59 @@ const MainPageComponent = () => {
             </div>
 
             { isMaster() ?
-            <div className={(isFullscreen ? 'hidden' : '') + ' master-controls-wrapper'}>
-                <label htmlFor="mainVideoUrl">Main Video Url { isHls ? "HLS(m3u8)" : "MP4" }:</label>
-                <input 
-                    type="text"
-                    id="mainVideoUrl"
-                    name="mainVideoUrl"
-                    ref={mainVideoUrl} />
+            <div>
+                <div className={(isFullscreen ? 'hidden' : '') + ' master-controls-wrapper'}>
+                    <div className='add-video-wrapper'>
+                        <div>Add Video:</div>
 
-                <label htmlFor="mainVideoName">Main Video Name:</label>
-                <input 
-                    type="text"
-                    id="mainVideoName"
-                    name="mainVideoName"
-                    ref={mainVideoName} />
+                        <label htmlFor="videoNameTxt">Video Name:</label>
+                        <input 
+                            type="text"
+                            id="videoNameTxt"
+                            name="videoNameTxt"
+                            ref={videoNameTxt} />
 
-                <label htmlFor="isHlsHdRezka">Is Hls HdRezka:</label>
-                <input
-                    type="checkbox"
-                    id="isHlsHdRezka"
-                    name="isHlsHdRezka"
-                    ref={isHlsHdRezka}
-                    onChange={isHlsHdRezkaOnChange}
-                    />
+                        <button onClick={onAddVideoClick}>Add Video</button>
+                    </div>
+                </div>
 
-                <button onClick={onChangeMainVideo}>Submit</button>
+                <div className={(isFullscreen ? 'hidden' : '') + ' master-controls-wrapper'}>
+                    <div className='add-video-quality-wrapper'>
+                        <div>Add Video Quality:</div>
+
+                        <label htmlFor="addVideoQualitySelectVideoDDL">Video Name:</label>
+                        <select id="addVideoQualitySelectVideoDDL" name="addVideoQualitySelectVideoDDL" ref={addVideoQualitySelectVideoDDL}>
+                        { videos.map((video, i) => {                 
+                        return (
+                            <option key={video.id} value={video.id}>{video.name}</option>
+                        )})}
+                        </select>
+
+                        <label htmlFor="videoQualityNameTxt">Video Quality Name:</label>
+                        <input 
+                            type="text"
+                            id="videoQualityNameTxt"
+                            name="videoQualityNameTxt"
+                            ref={videoQualityNameTxt} />
+
+                        <label htmlFor="videoQualityUrlTxt">Video Quality Url:</label>
+                        <input 
+                            type="text"
+                            id="videoQualityUrlTxt"
+                            name="videoQualityUrlTxt"
+                            ref={videoQualityUrlTxt} />
+
+                        <label htmlFor="isHlsHdRezka">Is Hls HdRezka:</label>
+                        <input
+                            type="checkbox"
+                            id="isHlsHdRezka"
+                            name="isHlsHdRezka"
+                            ref={isHlsHdRezka}
+                            />
+
+                        <button onClick={onAddVideoQualityClick}>Add Video Quality</button>
+                    </div>
+                </div>
             </div>
             :
             ""
@@ -320,7 +460,7 @@ const MainPageComponent = () => {
                         <div className='video-quality-list'>
                         { qualities.map((quality, i) => {
                         if(quality.videoId == video.id) return (    
-                            <div key={quality.id} className='video-quality-item' onClick={(e) => onVideoQualityClick(quality.id) }>
+                            <div key={quality.id} className='video-quality-item' onClick={(e) => onVideoQualityClick(quality) }>
                                 <div className='video-quality-name'>{quality.name}</div>
                             </div>
                         )})}
