@@ -21,6 +21,11 @@
     height: 100%;
 }
 
+.message-list {
+    overflow-y: scroll;
+    max-height: 500px;
+}
+
 .fullscreen.main-interface {
     height: 100%;
     position: fixed;
@@ -55,8 +60,15 @@
 .fullscreen .chat-wrapper {
     z-index: 2;
     position: fixed;
-    top: calc(100% - 225px);
+    /* top: calc(100% - 225px); */
+    top: 20px;
     right: 0;
+    width: 350;
+}
+
+.fullscreen .message-list {
+    overflow-y: scroll;
+    height: 280px;
 }
 
 .fullscreen-btn
