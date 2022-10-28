@@ -5,18 +5,19 @@ import ReactHlsPlayer from "react-hls-player";
 import Chat from '../components/Chat/Chat';
 import { getTokenFromStorage, isMaster, isMaster as isRomchik } from '../api/TokenStorageService';
 import { HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
-import { BASE_CHAT_HUB_URL, BASE_VIDEO_HUB_URL, HD_REZKA_M3U8_PREFIX, SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO, 
+import { BASE_CHAT_HUB_URL, BASE_VIDEO_HUB_URL, HD_REZKA_M3U8_PREFIX, SIGNALR_VIDEO_HUB_RECEIVE_CHANGE_VIDEO, SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO, 
     SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO_QUALITY, SIGNALR_VIDEO_HUB_RECEIVE_START_VIDEO, 
     SIGNALR_VIDEO_HUB_RECEIVE_STOP_VIDEO, SIGNALR_VIDEO_HUB_RECEIVE_VIDEO_TIMESTAMP, 
+    SIGNALR_VIDEO_HUB_SEND_CHANGE_VIDEO, 
     SIGNALR_VIDEO_HUB_SEND_START_VIDEO, SIGNALR_VIDEO_HUB_SEND_STOP_VIDEO, 
     SIGNALR_VIDEO_HUB_SEND_VIDEO, SIGNALR_VIDEO_HUB_SEND_VIDEO_QUALITY, SIGNALR_VIDEO_HUB_SEND_VIDEO_TIMESTAMP } from '../config';
 import { VideoModel } from '../models/Video/VideoModel';
 import { VideoQualityModel } from '../models/Video/VideoQualityModel';
 import { VideoTimeStampModel } from '../models/Video/VideoTimeStampModel';
 import { getAllQualities, getAllVideos, getQualitiesByVideoId } from '../api/VideoService';
+import { ChangeQualityModel } from '../models/ChangeQualityModel';
 
 const MainPageComponent = () => {
-    const [ currentVideoUrl, setCurrentVideoUrl ] = useState<string>("");
     const [ videos, setVideos ] = useState<VideoModel[]>([]);
     const [ qualities, setQualities ] = useState<VideoQualityModel[]>([]); 
     const [ updateTimeIntervalId, setUpdateTimeIntervalId ] = useState<NodeJS.Timer>();
@@ -26,6 +27,7 @@ const MainPageComponent = () => {
     const [ currentVideoQualityId, setCurrentVideoQualityId ] = useState<string>("00000000-0000-0000-0000-000000000000");
     const [ mastersCurrentTimeStamp, setMastersCurrentTimeStamp ] = useState<number>(0);
     const [ isFullscreen, setIsFullscreen ] = useState<boolean>(false);
+    const [ currentVideoUrl, setCurrentVideoUrl ] = useState<ChangeQualityModel>(new ChangeQualityModel);
     const playerRef = useRef<HTMLVideoElement>(null);
 
     const videoNameTxt = useRef<HTMLInputElement>(null);
@@ -36,14 +38,51 @@ const MainPageComponent = () => {
     const isHlsHdRezka = useRef<HTMLInputElement>(null);
 
 
-    // TempWorkAround
-    const [onReceiveStartVideoData, setOnReceiveStartVideoData] = useState<VideoTimeStampModel>();
+    // new data received
+    const [ onReceiveNewVideoData, setOnReceiveNewVideoData ] = useState<VideoModel>();
+    const [ onReceiveNewVideoQualityData, setOnReceiveNewVideoQualityData ] = useState<VideoQualityModel>();
+    const [ onReceiveNewTimeStampData, setOnReceiveNewTimeStampData ] = useState<VideoTimeStampModel>();
+    const [ onReceiveChangeVideoData, setOnReceiveChangeVideoData ] = useState<VideoTimeStampModel>();
+    const [ onReceiveStartVideoData, setOnReceiveStartVideoData ] = useState<VideoTimeStampModel>();
+    const [ onReceiveStopVideoData, setOnReceiveStopVideoData ] = useState<VideoTimeStampModel>();
+
+    useEffect(() => {
+        if(onReceiveNewVideoData) {
+            onReceiveNewVideo(onReceiveNewVideoData);
+        }
+    }, [onReceiveNewVideoData]);
+
+    useEffect(() => {
+        if(onReceiveNewVideoQualityData) {
+            onReceiveNewVideoQuality(onReceiveNewVideoQualityData);
+        }
+    }, [onReceiveNewVideoQualityData]);
+
+    useEffect(() => {
+        if(onReceiveNewTimeStampData) {
+            onReceiveNewTimeStamp(onReceiveNewTimeStampData);
+        }
+    }, [onReceiveNewTimeStampData]);
+
+    useEffect(() => {
+        if(onReceiveChangeVideoData) {
+            onReceiveChangeVideo(onReceiveChangeVideoData);
+        }
+    }, [onReceiveChangeVideoData]);
+
     useEffect(() => {
         if(onReceiveStartVideoData) {
             onReceiveStartVideo(onReceiveStartVideoData);
         }
     }, [onReceiveStartVideoData]);
 
+    useEffect(() => {
+        if(onReceiveStopVideoData) {
+            onReceiveStopVideo(onReceiveStopVideoData);
+        }
+    }, [onReceiveStopVideoData]);
+
+    //end new data received
 
     const updateUsersTimeStampIntervalSec = 4;
     const updateUsersTimeStampIntervalMs = updateUsersTimeStampIntervalSec*1000;
@@ -84,7 +123,7 @@ const MainPageComponent = () => {
                         console.log(message);
                         let model = message as VideoModel;
                         console.log(model);
-                        onReceiveNewVideo(model);
+                        setOnReceiveNewVideoData(model)
                     });
 
                     connection.on(SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO_QUALITY, message => {
@@ -92,7 +131,15 @@ const MainPageComponent = () => {
                         console.log(message);
                         let model = message as VideoQualityModel;
                         console.log(model);
-                        onReceiveNewVideoQuality(model);
+                        setOnReceiveNewVideoQualityData(model);
+                    });
+
+                    connection.on(SIGNALR_VIDEO_HUB_RECEIVE_CHANGE_VIDEO, message => {
+                        console.log("New Time!");
+                        console.log(message);
+                        let model = message as VideoTimeStampModel;
+                        console.log(model);
+                        setOnReceiveChangeVideoData(model);
                     });
 
                     connection.on(SIGNALR_VIDEO_HUB_RECEIVE_VIDEO_TIMESTAMP, message => {
@@ -100,7 +147,7 @@ const MainPageComponent = () => {
                         console.log(message);
                         let model = message as VideoTimeStampModel;
                         console.log(model);
-                        onReceiveNewTimeStamp(model);
+                        setOnReceiveNewTimeStampData(model);
                     });
 
                     connection.on(SIGNALR_VIDEO_HUB_RECEIVE_START_VIDEO, (message) => {
@@ -115,7 +162,7 @@ const MainPageComponent = () => {
                         console.log("Pause!");
                         let model = message as VideoTimeStampModel;
                         console.log(model);
-                        onReceiveStopVideo(model);
+                        setOnReceiveStopVideoData(model);
                     });
                 })
                 .catch(e => {
@@ -124,7 +171,7 @@ const MainPageComponent = () => {
                 });
         }
     }, [connection]);
-
+    
     //Receive
 
     const onReceiveNewVideo = (model: VideoModel) => {
@@ -135,62 +182,60 @@ const MainPageComponent = () => {
         setQualities(qs => [...qs, model]);
     }
 
+    const checkIfUserIsNotSynchronized = (mastersTimeStamp: number) : boolean => {
+        if(playerRef && playerRef.current) {
+            return (mastersTimeStamp - playerRef.current.currentTime >= updateUsersTimeStampIntervalSec) 
+                            || (mastersTimeStamp - playerRef.current.currentTime <= -1 * updateUsersTimeStampIntervalSec);
+        }
+        return true;
+    }
+
     const onReceiveNewTimeStamp = (model: VideoTimeStampModel) => {
         if(!isRomchik()) {
             if(model.timeStamp) {
                 let mastersTimeStamp = Number(model.timeStamp);
                 setMastersCurrentTimeStamp(mastersTimeStamp);
-                if(playerRef && playerRef.current 
-                    && (((mastersTimeStamp - playerRef.current.currentTime >= (updateUsersTimeStampIntervalSec/1000)) || (mastersTimeStamp - playerRef.current.currentTime <= -1 * (updateUsersTimeStampIntervalSec/1000)))
-                        || model.isForce)) {
+                if(playerRef && playerRef.current && (checkIfUserIsNotSynchronized(mastersTimeStamp) || model.isForce)) {
+                    console.log("Woooow, you're so slow, need update.")
                     playerRef.current.currentTime = mastersTimeStamp;
                 }
             }
         }
     }
 
-    const onReceiveStartVideo = (model: VideoTimeStampModel) => {
-        //TODO: in case of lags try not to udpate TimeStamp
-        if(playerRef && playerRef.current) {
-            //Roma already selected quality and video, so there is no need to set default values for him
-            let isNeedToUpdateTimeStamp = true;
-            if(!isRomchik()) {
-                setCurrentVideoId(model.videoId);
-                
-                let isCurrentlyInUse = false;
-                let minQuality = new VideoQualityModel();
-                minQuality.id = "00000000-0000-0000-0000-000000000000";
-                minQuality.name = "0";
-                for(let i=0; i < qualities.length; i++) {
-                    if(qualities[i].videoId == model.videoId) {
-                        let minQualityNum = Number(minQuality.name);
-                        let curQualityNum = Number(qualities[i].name);
-                        if(!isNaN(minQualityNum) && !isNaN(curQualityNum)){
-                            if(minQualityNum < curQualityNum){
-                                minQuality = qualities[i];
-                            }
-                        } else {
-                            minQuality = qualities[i];
-                        }
-
-                        if(qualities[i].url == playerRef.current.src){
-                            isCurrentlyInUse = true;
-                            break;
-                        }
+    const onReceiveChangeVideo = (model: VideoTimeStampModel) => {
+        let minQuality = new VideoQualityModel();
+        minQuality.id = "00000000-0000-0000-0000-000000000000";
+        minQuality.name = "0";
+        for(let i=0; i < qualities.length; i++) {
+            if(qualities[i].videoId == model.videoId) {
+                let minQualityNum = Number(minQuality.name);
+                let curQualityNum = Number(qualities[i].name);
+                if(!isNaN(minQualityNum) && !isNaN(curQualityNum)){
+                    if(minQualityNum < curQualityNum){
+                        minQuality = qualities[i];
                     }
-                }
-                console.log(isCurrentlyInUse);
-                console.log(minQuality);
-                if(isCurrentlyInUse == false) {
-                    setCurrentVideoQualityId(q => minQuality.id);
-                    setCurrentVideoUrl(v => minQuality.url);
-                    isNeedToUpdateTimeStamp = true;
                 } else {
-                    isNeedToUpdateTimeStamp = false;
+                    minQuality = qualities[i];
                 }
             }
+        }
+        setCurrentVideoId(model.videoId);
+        setCurrentVideoQualityId(q => minQuality.id);
+        let changeQualitymodel = new ChangeQualityModel();
+        changeQualitymodel.videoUrl = minQuality.url;
+        changeQualitymodel.videoTimeStamp = 0;
+        setCurrentVideoUrl(changeQualitymodel);
+    }
 
-            playVideo(model, isNeedToUpdateTimeStamp);
+    const onReceiveStartVideo = (model: VideoTimeStampModel) => {
+        if(playerRef && playerRef.current) {
+            if(!isRomchik()) {
+                playerRef.current.currentTime = Number(model.timeStamp); 
+                console.log(playerRef.current.currentTime);
+            }
+
+            playerRef.current.play();
         }
     }
 
@@ -199,10 +244,12 @@ const MainPageComponent = () => {
             if (playerRef && playerRef.current) {
                 console.log("set new time: " + model.timeStamp);
                 playerRef.current.currentTime = Number(model.timeStamp);
+                playerRef.current.pause();
             }
-            pauseVideo();
         }
     }
+
+    //end Receive
 
     const ConnectToHub = () => {
         const newConnection = new HubConnectionBuilder()
@@ -229,56 +276,31 @@ const MainPageComponent = () => {
         } 
     }
 
-    const playVideo = async (videoTimeStamp: VideoTimeStampModel, isNeedToUpdateTimeStamp: boolean = true) => {
-        if(playerRef && playerRef.current)
-        {
-            if(isNeedToUpdateTimeStamp) {
-                let timeStamp = Number(videoTimeStamp.timeStamp);
-                playerRef.current.currentTime = timeStamp; 
-                console.log(playerRef.current.currentTime);
-            }
-            
-            playerRef.current.play();
-        }
-    }
-
     const onPlayVideo = (e: SyntheticEvent<HTMLVideoElement, Event>) => {
         e.preventDefault();
-        if(playerRef && playerRef.current)
-        {
+        if(playerRef && playerRef.current) {
             if(connection && connection.state == HubConnectionState.Connected && isRomchik()) {
                 let videoId = currentVideoId;
                 let timestamp = playerRef.current.currentTime.toString();
                 connection.send(SIGNALR_VIDEO_HUB_SEND_START_VIDEO, videoId, timestamp);
-                if(isRomchik()) {
-                    const myInterval = setInterval(() => {
-                        updateVideoTimeForClients();
-                    }, updateUsersTimeStampIntervalMs);
-    
-                    setUpdateTimeIntervalId(myInterval);
-                }
-            } else if(!isRomchik()) {
-                e.preventDefault();
+                const myInterval = setInterval(() => {
+                    updateVideoTimeForClients();
+                }, updateUsersTimeStampIntervalMs);
+
+                setUpdateTimeIntervalId(myInterval);
             }
         }
     }
 
-    const pauseVideo = () => {
-        if(playerRef && playerRef.current)
-        {
-            playerRef.current.pause();
-        }
-    }
-
     const onPauseVideo = (e: SyntheticEvent<HTMLVideoElement, Event>) => {
-        if(connection && connection.state == HubConnectionState.Connected && playerRef && playerRef.current && isRomchik()) {
-            let videoId = currentVideoId;
-            let timestamp = playerRef.current.currentTime.toString();
-            clearInterval(updateTimeIntervalId);
-            connection.send(SIGNALR_VIDEO_HUB_SEND_STOP_VIDEO, videoId, timestamp);
-            playerRef.current.pause();
-        } else if(!isRomchik()) {
-            e.preventDefault();
+        e.preventDefault();
+        if(playerRef && playerRef.current) {
+            if(connection && connection.state == HubConnectionState.Connected && playerRef && playerRef.current && isRomchik()) {
+                let videoId = currentVideoId;
+                let timestamp = playerRef.current.currentTime.toString();
+                clearInterval(updateTimeIntervalId);
+                connection.send(SIGNALR_VIDEO_HUB_SEND_STOP_VIDEO, videoId, timestamp);
+            }
         }
     }
 
@@ -334,20 +356,28 @@ const MainPageComponent = () => {
         if(playerRef && playerRef.current) {
             //if Roma -> send selected video to all other persons and to Roma to play video
             if(isRomchik() && connection && connection.state == HubConnectionState.Connected && quality) {
-                let currentTimeStamp = playerRef.current.currentTime;
-                setCurrentVideoUrl(quality.url);
-                playerRef.current.currentTime = currentTimeStamp;
+                let isNewVideo = quality.videoId != currentVideoId;
+                let changeQualityModel = new ChangeQualityModel();
+                changeQualityModel.videoTimeStamp = playerRef.current.currentTime;
+                changeQualityModel.videoUrl = quality.url;
                 playerRef.current.pause();
+                setCurrentVideoUrl(changeQualityModel);
                 setCurrentVideoId(quality.videoId);
                 setCurrentVideoQualityId(quality.id);
-                connection.send(SIGNALR_VIDEO_HUB_SEND_START_VIDEO, quality.videoId, "0");
+                if(isNewVideo) {
+                    connection.send(SIGNALR_VIDEO_HUB_SEND_CHANGE_VIDEO, quality.videoId, "0");
+                } else {
+                    connection.send(SIGNALR_VIDEO_HUB_SEND_STOP_VIDEO, quality.videoId, "0");
+                }
             } else if(!isRomchik()) {
                 //if not Roma -> change quality
                 if(quality.videoId == currentVideoId) {
-                    let currentTimeStamp = playerRef.current.currentTime;
-                    setCurrentVideoUrl(quality.url);
-                    playerRef.current.currentTime = currentTimeStamp;
-                    playerRef.current.play();
+                    let changeQualityModel = new ChangeQualityModel();
+                    changeQualityModel.videoTimeStamp = playerRef.current.currentTime;
+                    changeQualityModel.videoUrl = quality.url;
+                    playerRef.current.pause();
+                    setCurrentVideoUrl(changeQualityModel);
+                    setCurrentVideoQualityId(quality.id);
                 }
             }
         }
@@ -360,7 +390,7 @@ const MainPageComponent = () => {
                 <div className='video-player-wrapper'>
                     <ReactHlsPlayer
                         playerRef={playerRef}
-                        src={currentVideoUrl}
+                        src={currentVideoUrl.videoUrl}
                         controls={true}
                         className="react-player"
                         onPlay={onPlayVideo}

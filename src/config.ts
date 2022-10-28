@@ -44,6 +44,13 @@ export const SIGNALR_VIDEO_HUB_RECEIVE_VIDEO_TIMESTAMP = "ReceiveNewVideoTimeSta
     In: string videoId, string timestamp
     out: VideoTimeStampModel
 */
+export const SIGNALR_VIDEO_HUB_SEND_CHANGE_VIDEO = "SendСhangeVideoAsync";
+export const SIGNALR_VIDEO_HUB_RECEIVE_CHANGE_VIDEO = "ReceiveChangeVideo";
+
+/*
+    In: string videoId, string timestamp
+    out: VideoTimeStampModel
+*/
 export const SIGNALR_VIDEO_HUB_SEND_START_VIDEO = "SendStartVideoAsync";
 export const SIGNALR_VIDEO_HUB_RECEIVE_START_VIDEO = "ReceiveStartVideo";
 

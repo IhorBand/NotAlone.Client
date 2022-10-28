@@ -7,12 +7,16 @@ import { MessageModel } from '../../models/MessageModel';
 import ChatInput from './ChatInput';
 import ChatWindow from './ChatWindow';
 import { getTokenFromStorage } from '../../api/TokenStorageService';
+import { Message } from 'react-hook-form';
 
 const Chat = () => {
     const [ connection, setConnection ] = useState<HubConnection>();
     const [ chatMessages, setChatMessages ] = useState<MessageModel[]>([]);
     const [ accessToken, setAccessToken ] = useState<string>("");
     
+    // new data
+    const [ receivedMessage, setReceivedMessage ] = useState<MessageModel>();
+
     const latestChatMessages = useRef<MessageModel[]>([]);
     latestChatMessages.current = chatMessages;
     
@@ -45,10 +49,15 @@ const Chat = () => {
         }
     }, [connection]);
 
+    // new data received
+    useEffect(() => {
+        if(receivedMessage && receivedMessage.message !== "") {
+            setChatMessages(c => [...chatMessages, receivedMessage]);
+        }
+    }, [receivedMessage]);
+
     const receiveMessage = (model: MessageModel) => {
-        const updatedChat = [...latestChatMessages.current];
-        updatedChat.push(model);
-        setChatMessages(updatedChat);
+        setReceivedMessage(model);
     }
 
     const onSendMessage = async (message: string) => {
