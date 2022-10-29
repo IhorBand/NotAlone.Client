@@ -1,9 +1,9 @@
 import './MainPage.css';
 
-import React, { useState, useEffect, useRef, SyntheticEvent } from 'react';
+import React, { useState, useEffect, useRef, SyntheticEvent, MouseEvent } from 'react';
 import ReactHlsPlayer from "react-hls-player";
 import Chat from '../components/Chat/Chat';
-import { getTokenFromStorage, isMaster, isMaster as isRomchik } from '../api/TokenStorageService';
+import { getTokenFromStorage, isMaster as isRomchik } from '../api/TokenStorageService';
 import { HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import { BASE_CHAT_HUB_URL, BASE_VIDEO_HUB_URL, HD_REZKA_M3U8_PREFIX, SIGNALR_VIDEO_HUB_RECEIVE_CHANGE_VIDEO, SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO, 
     SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO_QUALITY, SIGNALR_VIDEO_HUB_RECEIVE_START_VIDEO, 
@@ -12,10 +12,11 @@ import { BASE_CHAT_HUB_URL, BASE_VIDEO_HUB_URL, HD_REZKA_M3U8_PREFIX, SIGNALR_VI
     SIGNALR_VIDEO_HUB_SEND_START_VIDEO, SIGNALR_VIDEO_HUB_SEND_STOP_VIDEO, 
     SIGNALR_VIDEO_HUB_SEND_VIDEO, SIGNALR_VIDEO_HUB_SEND_VIDEO_QUALITY, SIGNALR_VIDEO_HUB_SEND_VIDEO_TIMESTAMP } from '../config';
 import { VideoModel } from '../models/Video/VideoModel';
-import { VideoQualityModel } from '../models/Video/VideoQualityModel';
+import { getDisplayName, sortVideoQualityModel, VideoQualityModel } from '../models/Video/VideoQualityModel';
 import { VideoTimeStampModel } from '../models/Video/VideoTimeStampModel';
 import { getAllQualities, getAllVideos, getQualitiesByVideoId } from '../api/VideoService';
 import { ChangeQualityModel } from '../models/ChangeQualityModel';
+import { Autocomplete, TextField } from '@mui/material';
 
 const MainPageComponent = () => {
     const [ videos, setVideos ] = useState<VideoModel[]>([]);
@@ -28,12 +29,11 @@ const MainPageComponent = () => {
     const [ mastersCurrentTimeStamp, setMastersCurrentTimeStamp ] = useState<number>(0);
     const [ isFullscreen, setIsFullscreen ] = useState<boolean>(false);
     const [ currentVideoUrl, setCurrentVideoUrl ] = useState<ChangeQualityModel>(new ChangeQualityModel);
+
     const playerRef = useRef<HTMLVideoElement>(null);
-
     const videoNameTxt = useRef<HTMLInputElement>(null);
-
     const addVideoQualitySelectVideoDDL = useRef<HTMLSelectElement>(null);
-    const videoQualityNameTxt = useRef<HTMLInputElement>(null);
+    const videoQualityNameDdl = useRef<HTMLSelectElement>(null);
     const videoQualityUrlTxt = useRef<HTMLInputElement>(null);
     const isHlsHdRezka = useRef<HTMLInputElement>(null);
 
@@ -204,26 +204,26 @@ const MainPageComponent = () => {
     }
 
     const onReceiveChangeVideo = (model: VideoTimeStampModel) => {
-        let minQuality = new VideoQualityModel();
-        minQuality.id = "00000000-0000-0000-0000-000000000000";
-        minQuality.name = "0";
+        let maxQuality = new VideoQualityModel();
+        maxQuality.id = "00000000-0000-0000-0000-000000000000";
+        maxQuality.name = "0";
         for(let i=0; i < qualities.length; i++) {
             if(qualities[i].videoId == model.videoId) {
-                let minQualityNum = Number(minQuality.name);
+                let maxQualityNum = Number(maxQuality.name);
                 let curQualityNum = Number(qualities[i].name);
-                if(!isNaN(minQualityNum) && !isNaN(curQualityNum)){
-                    if(minQualityNum < curQualityNum){
-                        minQuality = qualities[i];
+                if(!isNaN(maxQualityNum) && !isNaN(curQualityNum)){
+                    if(maxQualityNum < curQualityNum){
+                        maxQuality = qualities[i];
                     }
                 } else {
-                    minQuality = qualities[i];
+                    maxQuality = qualities[i];
                 }
             }
         }
         setCurrentVideoId(model.videoId);
-        setCurrentVideoQualityId(q => minQuality.id);
+        setCurrentVideoQualityId(q => maxQuality.id);
         let changeQualitymodel = new ChangeQualityModel();
-        changeQualitymodel.videoUrl = minQuality.url;
+        changeQualitymodel.videoUrl = maxQuality.url;
         changeQualitymodel.videoTimeStamp = 0;
         setCurrentVideoUrl(changeQualitymodel);
     }
@@ -334,18 +334,21 @@ const MainPageComponent = () => {
     }
 
     const onAddVideoQualityClick = () => {
+        console.log(addVideoQualitySelectVideoDDL);
+        console.log(addVideoQualitySelectVideoDDL.current);
+        console.log(addVideoQualitySelectVideoDDL.current ? addVideoQualitySelectVideoDDL.current.value : "");
         if(isRomchik() && connection && connection.state == HubConnectionState.Connected
-        && videoQualityNameTxt && videoQualityNameTxt.current && videoQualityNameTxt.current.value
+        && videoQualityNameDdl && videoQualityNameDdl.current && videoQualityNameDdl.current.value
         && videoQualityUrlTxt && videoQualityUrlTxt.current && videoQualityUrlTxt.current.value
         && addVideoQualitySelectVideoDDL && addVideoQualitySelectVideoDDL.current && addVideoQualitySelectVideoDDL.current.value
         && isHlsHdRezka && isHlsHdRezka.current) {
-            let checkQualityName = Number(videoQualityNameTxt.current.value);
+            let checkQualityName = Number(videoQualityNameDdl.current.value);
             if(!isNaN(checkQualityName)) {
                 let url = videoQualityUrlTxt.current.value;
                 if (isHlsHdRezka.current.checked) {
                     url += HD_REZKA_M3U8_PREFIX;
                 }
-                connection.send(SIGNALR_VIDEO_HUB_SEND_VIDEO_QUALITY, addVideoQualitySelectVideoDDL.current.value, url, videoQualityNameTxt.current.value);
+                connection.send(SIGNALR_VIDEO_HUB_SEND_VIDEO_QUALITY, addVideoQualitySelectVideoDDL.current.value, url, videoQualityNameDdl.current.value);
             } else {
                 alert("Quality Name must be a number(1234567890)");
             }
@@ -383,6 +386,15 @@ const MainPageComponent = () => {
         }
     }
 
+    const onVideoNameClick = (e: MouseEvent<HTMLDivElement>) => {
+        if(e && e.currentTarget && e.currentTarget.nextElementSibling) {
+            if(e.currentTarget.nextElementSibling.classList.contains('dont-show')) {
+                e.currentTarget.nextElementSibling.classList.remove('dont-show');
+            } else {
+                e.currentTarget.nextElementSibling.classList.add('dont-show');
+            }
+        }
+    }
 
     return (
         <>
@@ -423,7 +435,7 @@ const MainPageComponent = () => {
                     </button>   
             </div>
 
-            { isMaster() ?
+            { isRomchik() ?
             <div>
                 <div className={(isFullscreen ? 'hidden' : '') + ' master-controls-wrapper'}>
                     <div className='add-video-wrapper'>
@@ -452,12 +464,16 @@ const MainPageComponent = () => {
                         )})}
                         </select>
 
-                        <label htmlFor="videoQualityNameTxt">Video Quality Name:</label>
-                        <input 
-                            type="text"
-                            id="videoQualityNameTxt"
-                            name="videoQualityNameTxt"
-                            ref={videoQualityNameTxt} />
+                        <label htmlFor="videoQualityNameDdl">Video Quality:</label>
+                        <select id="videoQualityNameDdl" name="videoQualityNameDdl" ref={videoQualityNameDdl}>
+                            <option value="360">360p</option>
+                            <option value="480">480p</option>
+                            <option value="720">720p</option>
+                            <option value="1080">1080p</option>
+                            <option value="1081">1080 Ultra</option>
+                            <option value="2160">2K</option>
+                            <option value="4320">4K</option>
+                        </select>
 
                         <label htmlFor="videoQualityUrlTxt">Video Quality Url:</label>
                         <input 
@@ -486,14 +502,14 @@ const MainPageComponent = () => {
             { videos.map((video, i) => {                 
                 return (
                 <div key={video.id} className='video-playlist-item'>
-                    <div className='video-name'>{video.name}</div>
-                        <div className='video-quality-list'>
-                        { qualities.map((quality, i) => {
-                        if(quality.videoId == video.id) return (    
-                            <div key={quality.id} className='video-quality-item' onClick={(e) => onVideoQualityClick(quality) }>
-                                <div className='video-quality-name'>{quality.name}</div>
-                            </div>
-                        )})}
+                    <div onClick={onVideoNameClick} className={ (video.id == currentVideoId ? 'selected' : '') + ' video-name'}>{video.name}</div>
+                    <div className={ (video.id == currentVideoId ? '' : 'dont-show') + ' video-quality-list'}>
+                    { qualities.sort((a,b) => sortVideoQualityModel(a,b)).map((quality, i) => {
+                    if(quality.videoId == video.id) return (    
+                        <div key={quality.id} className={(quality.id == currentVideoQualityId ? 'selected' : '') + ' video-quality-item'} onClick={(e) => onVideoQualityClick(quality) }>
+                            <div className='video-quality-name'>{getDisplayName(quality)}</div>
+                        </div>
+                    )})}
                     </div>
                 </div>
                 )})}

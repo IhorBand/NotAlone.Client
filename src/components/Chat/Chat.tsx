@@ -8,6 +8,8 @@ import ChatInput from './ChatInput';
 import ChatWindow from './ChatWindow';
 import { getTokenFromStorage } from '../../api/TokenStorageService';
 import { Message } from 'react-hook-form';
+import MessageReceivedSound from "../../audioclips/message_received.mp3";
+import { Howl, Howler } from 'howler';
 
 const Chat = () => {
     const [ connection, setConnection ] = useState<HubConnection>();
@@ -39,7 +41,7 @@ const Chat = () => {
                 .then(result => {
                     console.log('Connected to Chat Hub!');
                     connection.on(SIGNALR_CHAT_HUB_RECEIVE_MESSAGE, message => {
-                        receiveMessage(message as MessageModel)
+                        setReceivedMessage(message as MessageModel);
                     });
                 })
                 .catch(e => {
@@ -51,14 +53,15 @@ const Chat = () => {
 
     // new data received
     useEffect(() => {
-        if(receivedMessage && receivedMessage.message !== "") {
+        let tokenModel = getTokenFromStorage();
+        if(receivedMessage && receivedMessage.message !== "" && tokenModel) {
             setChatMessages(c => [...chatMessages, receivedMessage]);
+            if(receivedMessage.userId != tokenModel.userId) {
+                const sound = new Howl({ src: MessageReceivedSound });
+                sound.play();
+            }
         }
     }, [receivedMessage]);
-
-    const receiveMessage = (model: MessageModel) => {
-        setReceivedMessage(model);
-    }
 
     const onSendMessage = async (message: string) => {
         if (connection && connection.state === HubConnectionState.Connected) {

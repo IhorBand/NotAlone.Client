@@ -9,6 +9,7 @@
 
 .chat-wrapper {
     width: 25%;
+    height: 100%;
 }
 
 .video-player {
@@ -22,8 +23,9 @@
 }
 
 .message-list {
+    max-height: 750px;
     overflow-y: scroll;
-    max-height: 500px;
+    height: 100%;
 }
 
 .fullscreen.main-interface {
@@ -63,7 +65,8 @@
     /* top: calc(100% - 225px); */
     top: 20px;
     right: 0;
-    width: 350;
+    width: 350px;
+    height: auto;
 }
 
 .fullscreen .message-list {
@@ -107,6 +110,10 @@
 
 .hidden {
     visibility: hidden;
+}
+
+.dont-show {
+    display:none !important;
 }
 
 .toggle-fullscreen-btn {
@@ -165,3 +172,50 @@
 .toggle-fullscreen-btn.on .icon-fullscreen-enter {
 	display: none;
 }
+
+
+.video-name {
+    color: #fff;
+    font-size: 20px;
+    font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+    margin: 20px auto;
+    cursor:pointer;
+}
+
+.video-name.selected {
+    color: greenyellow;
+}
+
+.video-name:first-child {
+    font-size: 25px;  
+}
+
+.video-quality-list {
+    width: 90%;
+    margin: 50px auto;
+    display: flex; 
+    justify-content: space-around;
+    align-content: space-around
+
+}
+.video-quality-item {
+    display: flex;
+    flex-direction: column;
+    align-content: center;
+    justify-content: center;
+    color: #fff;
+    width: 20%;
+    height: 50px;
+    border: 1px solid #fff;
+    transition: 0.3s;
+}
+
+
+.video-quality-item.selected,
+.video-quality-item:hover {
+    border: 1px solid rgb(48, 42, 42);
+    background-color: #51be30;
+    cursor: pointer;
+    color: #000;
+}
+

@@ -1,6 +1,6 @@
 import './ChatInput.css';
 
-import React, { useRef } from 'react';
+import React, { KeyboardEvent, useRef } from 'react';
 
 export interface ChatInputProps {
     onSendMessage: (message: string) => void;
@@ -11,16 +11,29 @@ const ChatInputComponent = (props: ChatInputProps) => {
 
     const onSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        sendMessage();
+    }
 
-        const isMessageProvided = message && message.current && message.current.value !== '';
+    const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+        if(e.key === 'Enter') {
+            e.preventDefault();
+            sendMessage();
+        }
+    }
+
+    const sendMessage = () => {
+        const isMessageProvided = message && message.current && message.current.value !== '' && message.current.value.trim() !== '';
 
         if (isMessageProvided) {
             props.onSendMessage(message.current.value);
+            message.current.value = '';
+            message.current.focus();
         } 
         else {
-            alert('Please type something to send a message. Don\'t be a jerk !');
+            alert('Please type something to send a message. Don`t be a jerk !');
         }
     }
+
 
     return (
         <form 
@@ -29,7 +42,8 @@ const ChatInputComponent = (props: ChatInputProps) => {
                 className="text-message-input"
                 id="message"
                 name="message"
-                ref={message} />
+                ref={message}
+                onKeyDown={onKeyDown} />
             <button className="send-message-btn"></button>
         </form>
     )
