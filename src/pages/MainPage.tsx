@@ -1,22 +1,21 @@
 import './MainPage.css';
 
-import React, { useState, useEffect, useRef, SyntheticEvent, MouseEvent } from 'react';
+import { useState, useEffect, useRef, SyntheticEvent, MouseEvent } from 'react';
 import ReactHlsPlayer from "react-hls-player";
 import Chat from '../components/Chat/Chat';
 import { getTokenFromStorage, isMaster as isRomchik } from '../api/TokenStorageService';
 import { HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
-import { BASE_CHAT_HUB_URL, BASE_VIDEO_HUB_URL, HD_REZKA_M3U8_PREFIX, SIGNALR_VIDEO_HUB_RECEIVE_CHANGE_VIDEO, SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO, 
-    SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO_QUALITY, SIGNALR_VIDEO_HUB_RECEIVE_START_VIDEO, 
-    SIGNALR_VIDEO_HUB_RECEIVE_STOP_VIDEO, SIGNALR_VIDEO_HUB_RECEIVE_VIDEO_TIMESTAMP, 
-    SIGNALR_VIDEO_HUB_SEND_CHANGE_VIDEO, 
-    SIGNALR_VIDEO_HUB_SEND_START_VIDEO, SIGNALR_VIDEO_HUB_SEND_STOP_VIDEO, 
-    SIGNALR_VIDEO_HUB_SEND_VIDEO, SIGNALR_VIDEO_HUB_SEND_VIDEO_QUALITY, SIGNALR_VIDEO_HUB_SEND_VIDEO_TIMESTAMP } from '../config';
+import { HD_REZKA_M3U8_PREFIX } from "../config"
+import { BASE_VIDEO_HUB_URL, SIGNALR_VIDEO_HUB_RECEIVE_CHANGE_VIDEO, SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO, 
+    SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO_QUALITY, SIGNALR_VIDEO_HUB_RECEIVE_START_VIDEO, SIGNALR_VIDEO_HUB_RECEIVE_STOP_VIDEO, 
+    SIGNALR_VIDEO_HUB_RECEIVE_VIDEO_TIMESTAMP, SIGNALR_VIDEO_HUB_SEND_CHANGE_VIDEO, SIGNALR_VIDEO_HUB_SEND_START_VIDEO, 
+    SIGNALR_VIDEO_HUB_SEND_STOP_VIDEO, SIGNALR_VIDEO_HUB_SEND_VIDEO, SIGNALR_VIDEO_HUB_SEND_VIDEO_QUALITY, 
+    SIGNALR_VIDEO_HUB_SEND_VIDEO_TIMESTAMP } from '../api/SignalREndpoints';
 import { VideoModel } from '../models/Video/VideoModel';
 import { getDisplayName, sortVideoQualityModel, VideoQualityModel } from '../models/Video/VideoQualityModel';
 import { VideoTimeStampModel } from '../models/Video/VideoTimeStampModel';
-import { getAllQualities, getAllVideos, getQualitiesByVideoId } from '../api/VideoService';
+import { getAllQualities, getAllVideos } from '../api/VideoService';
 import { ChangeQualityModel } from '../models/ChangeQualityModel';
-import { Autocomplete, TextField } from '@mui/material';
 
 const MainPageComponent = () => {
     const [ videos, setVideos ] = useState<VideoModel[]>([]);
@@ -26,7 +25,6 @@ const MainPageComponent = () => {
     const [ accessToken, setAccessToken ] = useState<string>("");
     const [ currentVideoId, setCurrentVideoId ] = useState<string>("00000000-0000-0000-0000-000000000000");
     const [ currentVideoQualityId, setCurrentVideoQualityId ] = useState<string>("00000000-0000-0000-0000-000000000000");
-    const [ mastersCurrentTimeStamp, setMastersCurrentTimeStamp ] = useState<number>(0);
     const [ isFullscreen, setIsFullscreen ] = useState<boolean>(false);
     const [ currentVideoUrl, setCurrentVideoUrl ] = useState<ChangeQualityModel>(new ChangeQualityModel);
 
@@ -95,20 +93,17 @@ const MainPageComponent = () => {
 
         getAllVideos().then((response) => {
             let videoModels = response.data as VideoModel[];
-            console.log(videoModels);
             setVideos(videoModels);
         });
 
         getAllQualities().then((response) => {
             let videoQualitiesModels = response.data as VideoQualityModel[];
-            console.log(videoQualitiesModels)
             setQualities(videoQualitiesModels);
         });
     }, []);
 
     useEffect(() => {
         if(accessToken && accessToken !== "") {
-            console.log(accessToken);
             ConnectToHub();
         }
     }, [accessToken]);
@@ -119,49 +114,32 @@ const MainPageComponent = () => {
                 .then(result => {
                     console.log('Connected to video Hub!');
                     connection.on(SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO, message => {
-                        console.log("New Video!");
-                        console.log(message);
                         let model = message as VideoModel;
-                        console.log(model);
                         setOnReceiveNewVideoData(model)
                     });
 
                     connection.on(SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO_QUALITY, message => {
-                        console.log("New Video Quality!");
-                        console.log(message);
                         let model = message as VideoQualityModel;
-                        console.log(model);
                         setOnReceiveNewVideoQualityData(model);
                     });
 
                     connection.on(SIGNALR_VIDEO_HUB_RECEIVE_CHANGE_VIDEO, message => {
-                        console.log("New Time!");
-                        console.log(message);
                         let model = message as VideoTimeStampModel;
-                        console.log(model);
                         setOnReceiveChangeVideoData(model);
                     });
 
                     connection.on(SIGNALR_VIDEO_HUB_RECEIVE_VIDEO_TIMESTAMP, message => {
-                        console.log("New Time!");
-                        console.log(message);
                         let model = message as VideoTimeStampModel;
-                        console.log(model);
                         setOnReceiveNewTimeStampData(model);
                     });
 
                     connection.on(SIGNALR_VIDEO_HUB_RECEIVE_START_VIDEO, (message) => {
-                        console.log("Play!");
-                        console.log(message);
-                        console.log(qualities);
                         let model = message as VideoTimeStampModel;
                         setOnReceiveStartVideoData(model);
                     });
 
                     connection.on(SIGNALR_VIDEO_HUB_RECEIVE_STOP_VIDEO, (message) => {
-                        console.log("Pause!");
                         let model = message as VideoTimeStampModel;
-                        console.log(model);
                         setOnReceiveStopVideoData(model);
                     });
                 })
@@ -194,9 +172,7 @@ const MainPageComponent = () => {
         if(!isRomchik()) {
             if(model.timeStamp) {
                 let mastersTimeStamp = Number(model.timeStamp);
-                setMastersCurrentTimeStamp(mastersTimeStamp);
                 if(playerRef && playerRef.current && (checkIfUserIsNotSynchronized(mastersTimeStamp) || model.isForce)) {
-                    console.log("Woooow, you're so slow, need update.")
                     playerRef.current.currentTime = mastersTimeStamp;
                 }
             }
@@ -232,7 +208,6 @@ const MainPageComponent = () => {
         if(playerRef && playerRef.current) {
             if(!isRomchik()) {
                 playerRef.current.currentTime = Number(model.timeStamp); 
-                console.log(playerRef.current.currentTime);
             }
 
             playerRef.current.play();
@@ -242,7 +217,6 @@ const MainPageComponent = () => {
     const onReceiveStopVideo = (model: VideoTimeStampModel) => {
         if(!isRomchik()) {
             if (playerRef && playerRef.current) {
-                console.log("set new time: " + model.timeStamp);
                 playerRef.current.currentTime = Number(model.timeStamp);
                 playerRef.current.pause();
             }
@@ -269,9 +243,7 @@ const MainPageComponent = () => {
     }
 
     const updateVideoTimeForClients = () => {
-        console.log(playerRef.current);
         if(playerRef.current && connection && connection.state == HubConnectionState.Connected) {
-            console.log(playerRef.current.currentTime);
             connection.send(SIGNALR_VIDEO_HUB_SEND_VIDEO_TIMESTAMP, currentVideoId, playerRef.current.currentTime.toString(), false);
         } 
     }
@@ -334,9 +306,6 @@ const MainPageComponent = () => {
     }
 
     const onAddVideoQualityClick = () => {
-        console.log(addVideoQualitySelectVideoDDL);
-        console.log(addVideoQualitySelectVideoDDL.current);
-        console.log(addVideoQualitySelectVideoDDL.current ? addVideoQualitySelectVideoDDL.current.value : "");
         if(isRomchik() && connection && connection.state == HubConnectionState.Connected
         && videoQualityNameDdl && videoQualityNameDdl.current && videoQualityNameDdl.current.value
         && videoQualityUrlTxt && videoQualityUrlTxt.current && videoQualityUrlTxt.current.value

@@ -1,6 +1,8 @@
 .main-interface {
     width: 100%;
     display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .video-player-wrapper {
@@ -42,6 +44,7 @@
     max-height: none;
     transform: none;
     margin: 0;
+    background: black;
 }
 
 .fullscreen .video-player-wrapper {

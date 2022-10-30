@@ -1,5 +1,5 @@
 import axios, { Canceler, ParamsSerializerOptions, RawAxiosRequestHeaders } from "axios";
-import { BASE_URL } from "../config";
+import { BASE_URL } from "./apiEndpoints";
 import { getTokenFromStorage } from "./TokenStorageService";
 
 interface HttpResponse {
