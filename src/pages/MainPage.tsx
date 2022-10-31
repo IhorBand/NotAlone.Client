@@ -170,10 +170,14 @@ const MainPageComponent = () => {
 
     const onReceiveNewTimeStamp = (model: VideoTimeStampModel) => {
         if(!isRomchik()) {
-            if(model.timeStamp) {
-                let mastersTimeStamp = Number(model.timeStamp);
-                if(playerRef && playerRef.current && (checkIfUserIsNotSynchronized(mastersTimeStamp) || model.isForce)) {
-                    playerRef.current.currentTime = mastersTimeStamp;
+            if(model.timeStamp && model.videoId) {
+                if(model.videoId != currentVideoId) {
+                    onReceiveChangeVideo(model);
+                } else {
+                    let mastersTimeStamp = Number(model.timeStamp);
+                    if(playerRef && playerRef.current && (checkIfUserIsNotSynchronized(mastersTimeStamp) || model.isForce)) {
+                        playerRef.current.currentTime = mastersTimeStamp;
+                    }
                 }
             }
         }
@@ -381,7 +385,7 @@ const MainPageComponent = () => {
                     </ReactHlsPlayer>
                 </div>
                 <div className='chat-wrapper'>
-                    <Chat />
+                    <Chat isFullscreen={isFullscreen} />
                 </div>
             </div>
             <div>

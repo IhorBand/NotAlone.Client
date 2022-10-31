@@ -8,104 +8,23 @@ import ChatInput from './ChatInput';
 import ChatWindow from './ChatWindow';
 import { getTokenFromStorage } from '../../api/TokenStorageService';
 import { Message } from 'react-hook-form';
-import MessageReceivedSound from "../../audioclips/message_received.mp3";
 import { Howl, Howler } from 'howler';
 import { Slider, Stack } from '@mui/material';
 
-const Chat = () => {
-    const [ connection, setConnection ] = useState<HubConnection>();
-    const [ chatMessages, setChatMessages ] = useState<MessageModel[]>([]);
-    const [ accessToken, setAccessToken ] = useState<string>("");
+export interface ChatComponentProps {
+    isFullscreen: boolean;
+}
+
+
+const ChatComponent = (props : ChatComponentProps) => {    
     const [ volume, setVolume ] = useState<number>(100);
-    // new data
-    const [ receivedMessage, setReceivedMessage ] = useState<MessageModel>();
-
-    const messageListDiv = useRef<HTMLDivElement>(null);
-    
-    useEffect(() => {
-        var tokenModel = getTokenFromStorage();
-        if(tokenModel && tokenModel.token && tokenModel.token !== "") {
-            setAccessToken(tokenModel.token);
-        }
-    }, []);
-
-    useEffect(() => {
-        if(accessToken && accessToken !== "") {
-            ConnectToHub();
-        }
-    }, [accessToken]);
-
-    useEffect(() => {
-        if (connection) {
-            connection.start()
-                .then(result => {
-                    console.log('Connected to Chat Hub!');
-                    connection.on(SIGNALR_CHAT_HUB_RECEIVE_MESSAGE, message => {
-                        setReceivedMessage(message as MessageModel);
-                    });
-                })
-                .catch(e => {
-                    console.log('Connection failed: ', e);
-                    console.log(e); 
-                });
-        }
-    }, [connection]);
-
-    // new data received
-    useEffect(() => {
-        let tokenModel = getTokenFromStorage();
-        if(receivedMessage && receivedMessage.message !== "" && tokenModel) {
-            if(chatMessages.length > 0 && chatMessages[chatMessages.length - 1]) {
-                receivedMessage.id = chatMessages[chatMessages.length - 1].id + 1;
-            } else {
-                receivedMessage.id = 1;
-            }
-
-            if(chatMessages.length > 150) {
-                chatMessages.splice(0, 100);
-            }
-            setChatMessages([...chatMessages, receivedMessage]);
-            if(receivedMessage.userId != tokenModel.userId) {
-                const sound = new Howl({ src: MessageReceivedSound });
-                sound.volume(volume/100);
-                sound.play();
-            }
-
-            if(messageListDiv && messageListDiv.current) {
-                messageListDiv.current.scrollTop = messageListDiv.current.scrollHeight;
-            }
-        }
-    }, [receivedMessage]);
+    const [ messageToSend, setMessageToSend ] = useState<MessageModel>();
 
     const onSendMessage = async (message: string) => {
-        if (connection && connection.state === HubConnectionState.Connected) {
-            try {
-                await connection.send(SIGNALR_CHAT_HUB_SEND_MESSAGE, message);
-            }
-            catch(e) {
-                console.log(e);
-            }
-        }
-        else {
-            alert('No connection to server yet.');
-        }
-    }
+        let messageModel = new MessageModel();
+        messageModel.message = message;
 
-    const ConnectToHub = () => {
-        const newConnection = new HubConnectionBuilder()
-        .withUrl(BASE_CHAT_HUB_URL, {
-            accessTokenFactory: () => { return accessToken; },
-            withCredentials: false
-        } as signalR.IHttpConnectionOptions)
-        .withAutomaticReconnect()
-        .build();
-
-        newConnection.onclose((error) => {
-            console.log(error?.message);
-            console.log(error);
-        })
-
-        setConnection(newConnection);
+        setMessageToSend(messageModel);
     }
 
     const handleVolumeChange = (event: Event, value: number | number[], activeThumb: number) => {
@@ -130,9 +49,11 @@ const Chat = () => {
                 <hr />
                 <ChatInput onSendMessage={onSendMessage} />
                 <hr />
-                <ChatWindow chatMessages={chatMessages} messageListDiv={messageListDiv} />
+                <ChatWindow newMessageReceivedSoundVolume={volume}
+                    isFullscreen={props.isFullscreen}
+                    newMessageToSend={messageToSend ? messageToSend : new MessageModel()} />
             </div>
         </>
     );
 };
-export default Chat;
+export default ChatComponent;
