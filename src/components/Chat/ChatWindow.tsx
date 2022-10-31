@@ -15,6 +15,7 @@ export interface ChatWindowComponentProps {
     newMessageReceivedSoundVolume: number;
     isFullscreen: boolean;
     newMessageToSend: MessageModel;
+    onNewMessageReceived: () => void;
 }
 
 const ChatWindowComponent = (props : ChatWindowComponentProps) => {
@@ -96,6 +97,7 @@ const ChatWindowComponent = (props : ChatWindowComponentProps) => {
         if(messageListDiv && messageListDiv.current) {
             messageListDiv.current.scrollTop = messageListDiv.current.scrollHeight;
         }
+        props.onNewMessageReceived();
     }, [chatMessages]);
 
     const ConnectToHub = () => {

@@ -68,9 +68,26 @@
     /* top: calc(100% - 225px); */
     top: 20px;
     right: 0;
-    width: 350px;
-    height: auto;
+    width: 33%;
+    height: 33%;
 }
+
+
+.fullscreen .chat-wrapper .chat-interface{
+    /* top: -9999999px; */
+    background: transparent;
+    position: absolute;
+    width: 50%;
+    right: 0;
+    animation: chatslideout 1s ease 0s 1 normal forwards;
+}
+
+.fullscreen .chat-wrapper:hover .chat-interface,
+.fullscreen .chat-wrapper.new-message-received .chat-interface { 
+    /* top: 0; */
+    animation: chatslidein 1s ease 0s 1 normal forwards;
+}
+
 
 .fullscreen .message-list {
     overflow-y: scroll;
@@ -222,3 +239,28 @@
     color: #000;
 }
 
+
+
+@keyframes chatslidein {
+	0% {
+		opacity: 0;
+		top: -3000px;
+	}
+
+	100% {
+		opacity: 1;
+		top: 0;
+	}
+}
+
+@keyframes chatslideout {
+	0% {
+		opacity: 1;
+		top: 0;
+	}
+
+    100% {
+		opacity: 0;
+		top: -500px;
+	}
+}

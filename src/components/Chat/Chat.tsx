@@ -13,6 +13,7 @@ import { Slider, Stack } from '@mui/material';
 
 export interface ChatComponentProps {
     isFullscreen: boolean;
+    onNewMessageReceived: () => void;
 }
 
 
@@ -30,6 +31,10 @@ const ChatComponent = (props : ChatComponentProps) => {
     const handleVolumeChange = (event: Event, value: number | number[], activeThumb: number) => {
         let a = value as number;
         setVolume(a);
+    }
+
+    const onNewMessageReceived = () => {
+        props.onNewMessageReceived();
     }
 
     return (
@@ -51,7 +56,8 @@ const ChatComponent = (props : ChatComponentProps) => {
                 <hr />
                 <ChatWindow newMessageReceivedSoundVolume={volume}
                     isFullscreen={props.isFullscreen}
-                    newMessageToSend={messageToSend ? messageToSend : new MessageModel()} />
+                    newMessageToSend={messageToSend ? messageToSend : new MessageModel()} 
+                    onNewMessageReceived={onNewMessageReceived} />
             </div>
         </>
     );

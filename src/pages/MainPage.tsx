@@ -16,6 +16,7 @@ import { getDisplayName, sortVideoQualityModel, VideoQualityModel } from '../mod
 import { VideoTimeStampModel } from '../models/Video/VideoTimeStampModel';
 import { getAllQualities, getAllVideos } from '../api/VideoService';
 import { ChangeQualityModel } from '../models/ChangeQualityModel';
+import { clear } from 'console';
 
 const MainPageComponent = () => {
     const [ videos, setVideos ] = useState<VideoModel[]>([]);
@@ -27,6 +28,8 @@ const MainPageComponent = () => {
     const [ currentVideoQualityId, setCurrentVideoQualityId ] = useState<string>("00000000-0000-0000-0000-000000000000");
     const [ isFullscreen, setIsFullscreen ] = useState<boolean>(false);
     const [ currentVideoUrl, setCurrentVideoUrl ] = useState<ChangeQualityModel>(new ChangeQualityModel);
+    const [ isNewChatMessageReceived, setIsNewChatMessageReceived ] = useState<boolean>(false);
+    const [ newChatMessageReceivedTimeoutId, setNewChatMessageReceivedTimeoutId ] = useState<NodeJS.Timeout | null>(null);
 
     const playerRef = useRef<HTMLVideoElement>(null);
     const videoNameTxt = useRef<HTMLInputElement>(null);
@@ -369,6 +372,27 @@ const MainPageComponent = () => {
         }
     }
 
+    const onNewMessageReceived = () => {
+        //clear previous timeout
+        if(newChatMessageReceivedTimeoutId && newChatMessageReceivedTimeoutId != null) {
+            clearTimeout(newChatMessageReceivedTimeoutId);
+        }
+        //show messages
+        setIsNewChatMessageReceived(true);
+        
+        //hide message after 5 secs
+        let timeout = setTimeout(() => {
+            if(newChatMessageReceivedTimeoutId && newChatMessageReceivedTimeoutId != null) {
+                clearTimeout(newChatMessageReceivedTimeoutId);
+            }
+            setNewChatMessageReceivedTimeoutId(null);
+            setIsNewChatMessageReceived(false);
+        }, 5000);
+
+        //set new timeoutId to clear
+        setNewChatMessageReceivedTimeoutId(timeout);
+    }
+
     return (
         <>
             <div className={ (isFullscreen ? "fullscreen" : "") + " main-interface"}>
@@ -384,8 +408,8 @@ const MainPageComponent = () => {
                     >
                     </ReactHlsPlayer>
                 </div>
-                <div className='chat-wrapper'>
-                    <Chat isFullscreen={isFullscreen} />
+                <div className={(isNewChatMessageReceived ? 'new-message-received ' : '') + 'chat-wrapper'}>
+                    <Chat isFullscreen={isFullscreen} onNewMessageReceived={onNewMessageReceived}/>
                 </div>
             </div>
             <div>

@@ -15,10 +15,6 @@
     border-radius: 15px;
 }
 
-.fullscreen .chat-interface {
-    background: transparent;
-}
-
 .volume-up-img,
 .volume-down-img,
 .volume-up-img > svg,
