@@ -1,4 +1,10 @@
 import './MainPage.css';
+import ihorAvatar from "../images/ihor_smaller.jpg"
+import oldIhorAvatar from "../images/oldihor.jpg"
+import oldRomavatar from "../images/oldroma.jpg"
+import andrewAvatar from "../images/andrew.jpg"
+import romaAvatar from "../images/roma_2.jpg"
+import capibaraAvatar from "../images/capibara.jpg"
 
 import { useState, useEffect, useRef, SyntheticEvent, MouseEvent } from 'react';
 import ReactHlsPlayer from "react-hls-player";
@@ -8,8 +14,9 @@ import { HubConnection, HubConnectionBuilder, HubConnectionState } from '@micros
 import { HD_REZKA_M3U8_PREFIX } from "../config"
 import { BASE_VIDEO_HUB_URL, SIGNALR_VIDEO_HUB_RECEIVE_CHANGE_VIDEO, SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO, 
     SIGNALR_VIDEO_HUB_RECEIVE_NEW_VIDEO_QUALITY, SIGNALR_VIDEO_HUB_RECEIVE_START_VIDEO, SIGNALR_VIDEO_HUB_RECEIVE_STOP_VIDEO, 
+    SIGNALR_VIDEO_HUB_RECEIVE_USER_STATUS, 
     SIGNALR_VIDEO_HUB_RECEIVE_VIDEO_TIMESTAMP, SIGNALR_VIDEO_HUB_SEND_CHANGE_VIDEO, SIGNALR_VIDEO_HUB_SEND_START_VIDEO, 
-    SIGNALR_VIDEO_HUB_SEND_STOP_VIDEO, SIGNALR_VIDEO_HUB_SEND_VIDEO, SIGNALR_VIDEO_HUB_SEND_VIDEO_QUALITY, 
+    SIGNALR_VIDEO_HUB_SEND_STOP_VIDEO, SIGNALR_VIDEO_HUB_SEND_USER_STATUS, SIGNALR_VIDEO_HUB_SEND_VIDEO, SIGNALR_VIDEO_HUB_SEND_VIDEO_QUALITY, 
     SIGNALR_VIDEO_HUB_SEND_VIDEO_TIMESTAMP } from '../api/SignalREndpoints';
 import { VideoModel } from '../models/Video/VideoModel';
 import { getDisplayName, sortVideoQualityModel, VideoQualityModel } from '../models/Video/VideoQualityModel';
@@ -17,6 +24,7 @@ import { VideoTimeStampModel } from '../models/Video/VideoTimeStampModel';
 import { getAllQualities, getAllVideos } from '../api/VideoService';
 import { ChangeQualityModel } from '../models/ChangeQualityModel';
 import { clear } from 'console';
+import { UserVideoStatusModel } from '../models/Video/UserVideoStatusModel';
 
 const MainPageComponent = () => {
     const [ videos, setVideos ] = useState<VideoModel[]>([]);
@@ -30,6 +38,8 @@ const MainPageComponent = () => {
     const [ currentVideoUrl, setCurrentVideoUrl ] = useState<ChangeQualityModel>(new ChangeQualityModel);
     const [ isNewChatMessageReceived, setIsNewChatMessageReceived ] = useState<boolean>(false);
     const [ newChatMessageReceivedTimeoutId, setNewChatMessageReceivedTimeoutId ] = useState<NodeJS.Timeout | null>(null);
+    const [ connectedUsersVideoStatus, setConnectedUsersVideoStatus ] = useState<UserVideoStatusModel[]>([]);
+    const [ currentUpdateStatusIntervalId, setCurrentUpdateStatusIntervalId ] = useState<NodeJS.Timer>();
 
     const playerRef = useRef<HTMLVideoElement>(null);
     const videoNameTxt = useRef<HTMLInputElement>(null);
@@ -46,6 +56,7 @@ const MainPageComponent = () => {
     const [ onReceiveChangeVideoData, setOnReceiveChangeVideoData ] = useState<VideoTimeStampModel>();
     const [ onReceiveStartVideoData, setOnReceiveStartVideoData ] = useState<VideoTimeStampModel>();
     const [ onReceiveStopVideoData, setOnReceiveStopVideoData ] = useState<VideoTimeStampModel>();
+    const [ onReceiveUserVideoStatusData, setOnReceiveUserVideoStatusData ] = useState<UserVideoStatusModel>();
 
     useEffect(() => {
         if(onReceiveNewVideoData) {
@@ -82,6 +93,12 @@ const MainPageComponent = () => {
             onReceiveStopVideo(onReceiveStopVideoData);
         }
     }, [onReceiveStopVideoData]);
+
+    useEffect(() => {
+        if(onReceiveUserVideoStatusData) {
+            onReceiveUserVideoStatus(onReceiveUserVideoStatusData);
+        }
+    }, [onReceiveUserVideoStatusData]);
 
     //end new data received
 
@@ -145,6 +162,14 @@ const MainPageComponent = () => {
                         let model = message as VideoTimeStampModel;
                         setOnReceiveStopVideoData(model);
                     });
+
+                    connection.on(SIGNALR_VIDEO_HUB_RECEIVE_USER_STATUS, (message) => {
+                        let model = message as UserVideoStatusModel;
+                        setOnReceiveUserVideoStatusData(model);
+                    });
+
+                    // update other users
+                    sendCurrentStatusToUsers();
                 })
                 .catch(e => {
                     console.log('Connection failed: ', e);
@@ -230,6 +255,26 @@ const MainPageComponent = () => {
         }
     }
 
+    const onReceiveUserVideoStatus = (model: UserVideoStatusModel) => {
+        let isNewUser: boolean = true;
+
+        if(connectedUsersVideoStatus && connectedUsersVideoStatus.length > 0) {
+            for(let i=0; i < connectedUsersVideoStatus.length; i++) {
+                if(connectedUsersVideoStatus[i].userId == model.userId) {
+                    let saveModel = connectedUsersVideoStatus;
+                    saveModel[i] = model;
+                    isNewUser = false;
+                    setConnectedUsersVideoStatus(saveModel);
+                    break;
+                } 
+            }
+        }
+
+        if(isNewUser) {
+            setConnectedUsersVideoStatus([...connectedUsersVideoStatus, model]);
+        }
+    }
+
     //end Receive
 
     const ConnectToHub = () => {
@@ -247,6 +292,49 @@ const MainPageComponent = () => {
         })
 
         setConnection(newConnection);
+    }
+
+    const convertStringToTime = (timestamp: string) => {
+        var sec_num = parseInt(timestamp, 10)
+        var hours   = Math.floor(sec_num / 3600)
+        var minutes = Math.floor(sec_num / 60) % 60
+        var seconds = sec_num % 60
+
+        return [hours,minutes,seconds]
+            .map(v => v < 10 ? "0" + v : v)
+            .filter((v,i) => v !== "00" || i > 0)
+            .join(":")
+    }
+
+    const sendCurrentStatusToUsers = () => {
+        if(currentUpdateStatusIntervalId) {} else {
+            console.log("creating interval to update user status");
+            let _currentUpdateStatusIntervalId = setInterval(() => {
+                if(connection && connection.state == HubConnectionState.Connected) {
+                    let additionalData = ""
+                    let status = 0;
+                    let currentTimeStamp = "";
+                    if(playerRef && playerRef.current) {
+                        //https://html.spec.whatwg.org/multipage/media.html#the-ready-states
+                        //HAVE_ENOUGH_DATA = 4 - ready to play(Loaded) 
+                        // 0,1,2,3 - loading, I guess
+                        if(playerRef.current.readyState == 0 || playerRef.current.readyState == 1) {
+                            status = 2;
+                        } else {
+                            if(playerRef.current.paused) {
+                                status = 0;
+                            } else {
+                                status = 1;
+                            }
+                        }
+                        currentTimeStamp = playerRef.current.currentTime.toString();
+                    }
+                    connection.send(SIGNALR_VIDEO_HUB_SEND_USER_STATUS, status, currentTimeStamp, additionalData);
+                }
+            }, 1000);
+
+            setCurrentUpdateStatusIntervalId(_currentUpdateStatusIntervalId);
+        }
     }
 
     const updateVideoTimeForClients = () => {
@@ -430,6 +518,44 @@ const MainPageComponent = () => {
                             </g>
                         </svg>
                     </button>   
+            </div>
+
+            <div className="user-data-wrapper">
+            { connectedUsersVideoStatus.map((userVideoStatus, i) => { return (
+                <div className='user-data-item'>
+                    <div className="user-avatar-wrapper">
+                        {userVideoStatus.userName==='Rom4ik' ? <img className='user-avatar' src="https://static8.tgstat.ru/channels/_0/90/908e7729970bbb8837e0f4e5e83b15da.jpg" /> : 
+                        userVideoStatus.userName==='s1lence' ? <img className='user-avatar' src={romaAvatar} /> :
+                        userVideoStatus.userName==='Andrew' ? <img className='user-avatar' src={andrewAvatar} /> :
+                        userVideoStatus.userName==='Ihor' ? <img className='user-avatar' src={ihorAvatar} /> : 
+                        userVideoStatus.userName==='Capibara' ? <img className='user-avatar' src={capibaraAvatar} /> : 
+                        <img className='user-avatar' src={oldIhorAvatar} />}
+                    </div>
+                    <div>{userVideoStatus.userName}</div>
+                    <div>{convertStringToTime(userVideoStatus.videoTimeStamp)}</div>    
+                    <div className='user-status'>
+                    {userVideoStatus.status == 0 ?
+                        <div>
+                            Pause
+                        </div>
+                    :
+                    userVideoStatus.status == 1 ?
+                        <div>
+                            Play
+                        </div>
+                    :
+                    userVideoStatus.status == 2 ?
+                        <div>
+                            Loading
+                        </div>
+                    :
+                        <div>
+                            Something is going on here, IDK
+                        </div>
+                    }
+                    </div>
+                </div>
+            );})}
             </div>
 
             { isRomchik() ?

@@ -4,7 +4,7 @@
     /* max-height: 700px; */
     min-height: 200px;
     height: 100%;
-    overflow: scroll;
+    /* overflow: scroll; */
     overflow-x: hidden;
     background-image: url(https://notalone.tv/images/bgChat/chat-bg-fall.jpg);
     background-position: center bottom;
