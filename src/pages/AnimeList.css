@@ -1,0 +1,132 @@
+.not-displayed {
+    display: none;
+}
+
+.loading {
+    position: absolute;
+    top: calc(50% - 100px);
+    left: calc(50% - 250px);
+    font-size: 100px;
+    color:white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* width: 100%;
+    height: 100%; */
+}
+
+.video-list-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    align-content: center;
+}
+
+.video-item {
+    width: 240px;
+    height: 330px;
+    color: #82d6b4;
+    margin-top: 70px;
+}
+
+.paging-control {
+    margin-top: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.paging-control > .current-page-index {
+    margin-left: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 30px;
+    color: #82d6b4;
+}
+
+.paging-control > button.next-button {
+    margin-left:30px;
+}
+
+.view-movie-controls-list {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.add-episodes-button,
+.go-back-button {
+    border: 1px solid;
+    padding-left: 20px;
+    padding-right: 20px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    background-color: rgb(107 149 44);
+}
+
+.translators-label,
+.seasons-label,
+.episodes-label {
+    font-size:32px;
+    color:white;
+}
+
+.translator-item-container,
+.episode-item-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.translator-item-container .translator-item:last-child {
+    margin-right: 0;
+}
+
+.translator-item,
+.episode-item {
+    border: 1px, solid;
+    padding: 20px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    background-color: #2aa372;
+    margin-top: 10px;
+    margin-right: 10px;
+    cursor: pointer;
+}
+
+.translator-item.selected,
+.episode-item.selected {
+    background-color: #00d681;
+}
+
+.video-info {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.video-info-cover-wrapper {
+    width: 10%;
+    max-width: 200px;
+}
+
+.video-info-cover-wrapper {
+    width: 100%;
+    height: auto;
+}
+
+.video-info-name {
+    color: white;
+    font-size: 32px;
+}
+
+.video-info-description {
+    color:white;
+    font-size: 20px;
+}

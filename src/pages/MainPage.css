@@ -271,6 +271,21 @@
     color: #5db556;
 }
 
+.hidden-page {
+    display: none;
+}
+
+.search-movies-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    background-color: #2a2b30;
+    height:fit-content;
+    min-height: 100%;
+}
+
 
 @keyframes chatslidein {
 	0% {

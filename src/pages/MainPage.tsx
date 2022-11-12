@@ -5,6 +5,7 @@ import oldRomavatar from "../images/oldroma.jpg"
 import andrewAvatar from "../images/andrew.jpg"
 import romaAvatar from "../images/roma_2.jpg"
 import capibaraAvatar from "../images/capibara.jpg"
+import arinaAvatar from "../images/arina.jpg"
 
 import { useState, useEffect, useRef, SyntheticEvent, MouseEvent } from 'react';
 import ReactHlsPlayer from "react-hls-player";
@@ -25,6 +26,7 @@ import { getAllQualities, getAllVideos } from '../api/VideoService';
 import { ChangeQualityModel } from '../models/ChangeQualityModel';
 import { clear } from 'console';
 import { UserVideoStatusModel } from '../models/Video/UserVideoStatusModel';
+import AnimeListComponent, { AddVideoEpisodeEventModel } from './AnimeList';
 
 const MainPageComponent = () => {
     const [ videos, setVideos ] = useState<VideoModel[]>([]);
@@ -37,9 +39,11 @@ const MainPageComponent = () => {
     const [ isFullscreen, setIsFullscreen ] = useState<boolean>(false);
     const [ currentVideoUrl, setCurrentVideoUrl ] = useState<ChangeQualityModel>(new ChangeQualityModel);
     const [ isNewChatMessageReceived, setIsNewChatMessageReceived ] = useState<boolean>(false);
+    const [ isSearchMoviePageShow, setIsSearchMoviePageShow ] = useState<boolean>(false);
     const [ newChatMessageReceivedTimeoutId, setNewChatMessageReceivedTimeoutId ] = useState<NodeJS.Timeout | null>(null);
     const [ connectedUsersVideoStatus, setConnectedUsersVideoStatus ] = useState<UserVideoStatusModel[]>([]);
     const [ currentUpdateStatusIntervalId, setCurrentUpdateStatusIntervalId ] = useState<NodeJS.Timer>();
+    const [ qualitiesToAddAfterRefresh, setQualitiesToAddAfterRefresh ] = useState<AddVideoEpisodeEventModel[]>([]);
 
     const playerRef = useRef<HTMLVideoElement>(null);
     const videoNameTxt = useRef<HTMLInputElement>(null);
@@ -182,9 +186,11 @@ const MainPageComponent = () => {
 
     const onReceiveNewVideo = (model: VideoModel) => {
         setVideos(vs => [...vs, model]);
+        AddQualitiesToMovieAfterReceive(model);
     }
 
     const onReceiveNewVideoQuality = (model: VideoQualityModel) => {
+        console.log(model);
         setQualities(qs => [...qs, model]);
     }
 
@@ -481,162 +487,239 @@ const MainPageComponent = () => {
         setNewChatMessageReceivedTimeoutId(timeout);
     }
 
+    const onMovieEpisodeSelected = (episodes: AddVideoEpisodeEventModel[]) => {
+        setIsSearchMoviePageShow(false);
+        setQualitiesToAddAfterRefresh(episodes);
+        for(let i = 0; i < episodes.length; i++) {
+            if(isRomchik() && connection && connection.state == HubConnectionState.Connected && episodes[i] && episodes[i].stream) { 
+                connection.send(SIGNALR_VIDEO_HUB_SEND_VIDEO, episodes[i].movieName+"||"+episodes[i].stream.season + "||" + episodes[i].stream.episode + "||" + episodes[i].videoId);
+            }
+        }
+    }
+
+    const AddQualitiesToMovieAfterReceive = (receivedVideo: VideoModel) => {
+        if(isRomchik() && connection && connection.state == HubConnectionState.Connected) {
+            console.log("Check Qualities after remove");
+            console.log(qualitiesToAddAfterRefresh);
+            let episodes = qualitiesToAddAfterRefresh;
+            if(episodes && episodes.length > 0) {
+                if(receivedVideo.name.includes('||')) {
+                    let args = receivedVideo.name.split('||');
+                    if(args.length >= 4) {
+                        let name = args[0];
+                        let season = args[1].trim();
+                        let episode = args[2].trim();
+                        let videoId = args[3].trim();
+                        for(let i = 0; i < episodes.length; i++) {
+                            if(episodes[i].videoId == videoId && episodes[i].stream.episode == episode && episodes[i].stream.season == season) {
+                                for(let j = 0; j < episodes[i].stream.resolutions.length; j++) {
+                                    let checkQualityName = Number(episodes[i].stream.resolutions[j].resolutionName.replace('p', '').replace('1080 Ultra', '1081').replace('1080 ultra', '1081'));
+                                    let qualityName = "";
+                                    if(!isNaN(checkQualityName)) {
+                                        qualityName = checkQualityName.toString();
+                                    } else {
+                                        qualityName = episodes[i].stream.resolutions[j].resolutionName;
+                                    }
+                                    let url = episodes[i].stream.resolutions[j].link;
+                                    url += HD_REZKA_M3U8_PREFIX;
+                                    if(episodes.length <= 1) {
+                                        setQualitiesToAddAfterRefresh(new Array<AddVideoEpisodeEventModel>());
+                                    } else {
+                                        let tmp = episodes.filter(e =>  (e.videoId != videoId) || (e.videoId == videoId && e.stream.season != season) || (e.videoId == videoId && e.stream.season == season && e.stream.episode != episode));
+                                        console.log("tmp")
+                                        console.log(tmp);
+                                        setQualitiesToAddAfterRefresh(tmp);
+                                    }
+                                    connection.send(SIGNALR_VIDEO_HUB_SEND_VIDEO_QUALITY, receivedVideo.id, url, qualityName);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    const onShowMoviePage = () => {
+        setIsSearchMoviePageShow(true);
+    }
+
+    const onBackToRoomClick = () => {
+        setIsSearchMoviePageShow(false);
+    }
+
     return (
         <>
-            <div className={ (isFullscreen ? "fullscreen" : "") + " main-interface"}>
-                <div className='video-player-wrapper'>
-                    <ReactHlsPlayer
-                        playerRef={playerRef}
-                        src={currentVideoUrl.videoUrl}
-                        controls={true}
-                        className="react-player"
-                        onPlay={onPlayVideo}
-                        onPause={onPauseVideo}
-                        onSeeked={onSeeked}
-                    >
-                    </ReactHlsPlayer>
+            <div className={'room-page' + (isSearchMoviePageShow ? " hidden-page" : "")}>
+                <div className={ (isFullscreen ? "fullscreen" : "") + " main-interface"}>
+                    <div className='video-player-wrapper'>
+                        <ReactHlsPlayer
+                            playerRef={playerRef}
+                            src={currentVideoUrl.videoUrl}
+                            controls={true}
+                            className="react-player"
+                            onPlay={onPlayVideo}
+                            onPause={onPauseVideo}
+                            onSeeked={onSeeked}
+                        >
+                        </ReactHlsPlayer>
+                    </div>
+                    <div className={(isNewChatMessageReceived ? 'new-message-received ' : '') + 'chat-wrapper'}>
+                        <Chat isFullscreen={isFullscreen} onNewMessageReceived={onNewMessageReceived}/>
+                    </div>
                 </div>
-                <div className={(isNewChatMessageReceived ? 'new-message-received ' : '') + 'chat-wrapper'}>
-                    <Chat isFullscreen={isFullscreen} onNewMessageReceived={onNewMessageReceived}/>
+                <div>
+                    <button className="js-toggle-fullscreen-btn toggle-fullscreen-btn" aria-label="Enter fullscreen mode" onClick={onFullscreenClick}>
+                            <svg className="toggle-fullscreen-svg" width="28" height="28" viewBox="-2 -2 28 28">
+                                <g className="icon-fullscreen-enter">
+                                    <path d="M 2 9 v -7 h 7" />
+                                    <path d="M 22 9 v -7 h -7" />
+                                    <path d="M 22 15 v 7 h -7" />
+                                    <path d="M 2 15 v 7 h 7" />
+                                </g>
+                                
+                                <g className="icon-fullscreen-leave">
+                                    <path d="M 24 17 h -7 v 7" />
+                                    <path d="M 0 17 h 7 v 7" />
+                                    <path d="M 0 7 h 7 v -7" />
+                                    <path d="M 24 7 h -7 v -7" />
+                                </g>
+                            </svg>
+                        </button>   
                 </div>
-            </div>
-            <div>
-                <button className="js-toggle-fullscreen-btn toggle-fullscreen-btn" aria-label="Enter fullscreen mode" onClick={onFullscreenClick}>
-                        <svg className="toggle-fullscreen-svg" width="28" height="28" viewBox="-2 -2 28 28">
-                            <g className="icon-fullscreen-enter">
-                                <path d="M 2 9 v -7 h 7" />
-                                <path d="M 22 9 v -7 h -7" />
-                                <path d="M 22 15 v 7 h -7" />
-                                <path d="M 2 15 v 7 h 7" />
-                            </g>
-                            
-                            <g className="icon-fullscreen-leave">
-                                <path d="M 24 17 h -7 v 7" />
-                                <path d="M 0 17 h 7 v 7" />
-                                <path d="M 0 7 h 7 v -7" />
-                                <path d="M 24 7 h -7 v -7" />
-                            </g>
-                        </svg>
-                    </button>   
-            </div>
 
-            <div className="user-data-wrapper">
-            { connectedUsersVideoStatus.map((userVideoStatus, i) => { return (
-                <div className='user-data-item'>
-                    <div className="user-avatar-wrapper">
-                        {userVideoStatus.userName==='Rom4ik' ? <img className='user-avatar' src="https://static8.tgstat.ru/channels/_0/90/908e7729970bbb8837e0f4e5e83b15da.jpg" /> : 
-                        userVideoStatus.userName==='s1lence' ? <img className='user-avatar' src={romaAvatar} /> :
-                        userVideoStatus.userName==='Andrew' ? <img className='user-avatar' src={andrewAvatar} /> :
-                        userVideoStatus.userName==='Ihor' ? <img className='user-avatar' src={ihorAvatar} /> : 
-                        userVideoStatus.userName==='Capibara' ? <img className='user-avatar' src={capibaraAvatar} /> : 
-                        <img className='user-avatar' src={oldIhorAvatar} />}
+                <div className="user-data-wrapper">
+                { connectedUsersVideoStatus.map((userVideoStatus, i) => { return (
+                    <div className='user-data-item'>
+                        <div className="user-avatar-wrapper">
+                            {userVideoStatus.userName==='Rom4ik' || userVideoStatus.userName==='s1lence' ? <img className='user-avatar' src={romaAvatar} /> :
+                            userVideoStatus.userName==='Andrew' ? <img className='user-avatar' src={andrewAvatar} /> :
+                            userVideoStatus.userName==='Ihor' || userVideoStatus.userName==='Mahura' ? <img className='user-avatar' src={ihorAvatar} /> : 
+                            userVideoStatus.userName==='Capibara' ? <img className='user-avatar' src={capibaraAvatar} /> :
+                            userVideoStatus.userName==='Arina' ? <img className='user-avatar' src={arinaAvatar} /> : 
+                            <img className='user-avatar' src={oldIhorAvatar} />}
+                        </div>
+                        <div>{userVideoStatus.userName}</div>
+                        <div>{convertStringToTime(userVideoStatus.videoTimeStamp)}</div>    
+                        <div className='user-status'>
+                        {userVideoStatus.status == 0 ?
+                            <div>
+                                Pause
+                            </div>
+                        :
+                        userVideoStatus.status == 1 ?
+                            <div>
+                                Play
+                            </div>
+                        :
+                        userVideoStatus.status == 2 ?
+                            <div>
+                                Loading
+                            </div>
+                        :
+                            <div>
+                                Something is going on here, IDK
+                            </div>
+                        }
+                        </div>
                     </div>
-                    <div>{userVideoStatus.userName}</div>
-                    <div>{convertStringToTime(userVideoStatus.videoTimeStamp)}</div>    
-                    <div className='user-status'>
-                    {userVideoStatus.status == 0 ?
-                        <div>
-                            Pause
+                );})}
+                </div>
+
+                { isRomchik() ?
+                <div>
+                    <div className={(isFullscreen ? 'hidden' : '') + ' master-controls-wrapper'}>
+                        <div className='add-video-wrapper'>
+                            <div>Add Video:</div>
+
+                            <label htmlFor="videoNameTxt">Video Name:</label>
+                            <input 
+                                type="text"
+                                id="videoNameTxt"
+                                name="videoNameTxt"
+                                ref={videoNameTxt} />
+
+                            <button onClick={onAddVideoClick}>Add Video</button>
                         </div>
-                    :
-                    userVideoStatus.status == 1 ?
-                        <div>
-                            Play
+                    </div>
+
+                    <div className={(isFullscreen ? 'hidden' : '') + ' master-controls-wrapper'}>
+                        <div className='add-video-quality-wrapper'>
+                            <div>Add Video Quality:</div>
+
+                            <label htmlFor="addVideoQualitySelectVideoDDL">Video Name:</label>
+                            <select id="addVideoQualitySelectVideoDDL" name="addVideoQualitySelectVideoDDL" ref={addVideoQualitySelectVideoDDL}>
+                            { videos.map((video, i) => {                 
+                            return (
+                                <option key={video.id} value={video.id}>{video.name}</option>
+                            )})}
+                            </select>
+
+                            <label htmlFor="videoQualityNameDdl">Video Quality:</label>
+                            <select id="videoQualityNameDdl" name="videoQualityNameDdl" ref={videoQualityNameDdl}>
+                                <option value="360">360p</option>
+                                <option value="480">480p</option>
+                                <option value="720">720p</option>
+                                <option value="1080">1080p</option>
+                                <option value="1081">1080 Ultra</option>
+                                <option value="2160">2K</option>
+                                <option value="4320">4K</option>
+                            </select>
+
+                            <label htmlFor="videoQualityUrlTxt">Video Quality Url:</label>
+                            <input 
+                                type="text"
+                                id="videoQualityUrlTxt"
+                                name="videoQualityUrlTxt"
+                                ref={videoQualityUrlTxt} />
+
+                            <label htmlFor="isHlsHdRezka">Is Hls HdRezka:</label>
+                            <input
+                                type="checkbox"
+                                id="isHlsHdRezka"
+                                name="isHlsHdRezka"
+                                ref={isHlsHdRezka}
+                                />
+
+                            <button onClick={onAddVideoQualityClick}>Add Video Quality</button>
                         </div>
-                    :
-                    userVideoStatus.status == 2 ?
-                        <div>
-                            Loading
-                        </div>
-                    :
-                        <div>
-                            Something is going on here, IDK
-                        </div>
-                    }
                     </div>
                 </div>
-            );})}
+                :
+                ""
+                }
+
+                <div className='video-playlist'>
+                { videos.map((video, i) => {                 
+                    return (
+                    <div key={video.id} className='video-playlist-item'>
+                        <div onClick={onVideoNameClick} className={ (video.id == currentVideoId ? 'selected' : '') + ' video-name'}>{video.name}</div>
+                        <div className={ (video.id == currentVideoId ? '' : 'dont-show') + ' video-quality-list'}>
+                        { qualities.sort((a,b) => sortVideoQualityModel(a,b)).map((quality, i) => {
+                        if(quality.videoId == video.id) return (    
+                            <div key={quality.id} className={(quality.id == currentVideoQualityId ? 'selected' : '') + ' video-quality-item'} onClick={(e) => onVideoQualityClick(quality) }>
+                                <div className='video-quality-name'>{getDisplayName(quality)}</div>
+                            </div>
+                        )})}
+                        </div>
+                    </div>
+                    )})}
+                </div>
             </div>
 
             { isRomchik() ?
-            <div>
-                <div className={(isFullscreen ? 'hidden' : '') + ' master-controls-wrapper'}>
-                    <div className='add-video-wrapper'>
-                        <div>Add Video:</div>
-
-                        <label htmlFor="videoNameTxt">Video Name:</label>
-                        <input 
-                            type="text"
-                            id="videoNameTxt"
-                            name="videoNameTxt"
-                            ref={videoNameTxt} />
-
-                        <button onClick={onAddVideoClick}>Add Video</button>
-                    </div>
+            <div className='video-list-page'>
+                <div>
+                    <button onClick={(e) => onShowMoviePage()}>Show Movie List</button>
                 </div>
-
-                <div className={(isFullscreen ? 'hidden' : '') + ' master-controls-wrapper'}>
-                    <div className='add-video-quality-wrapper'>
-                        <div>Add Video Quality:</div>
-
-                        <label htmlFor="addVideoQualitySelectVideoDDL">Video Name:</label>
-                        <select id="addVideoQualitySelectVideoDDL" name="addVideoQualitySelectVideoDDL" ref={addVideoQualitySelectVideoDDL}>
-                        { videos.map((video, i) => {                 
-                        return (
-                            <option key={video.id} value={video.id}>{video.name}</option>
-                        )})}
-                        </select>
-
-                        <label htmlFor="videoQualityNameDdl">Video Quality:</label>
-                        <select id="videoQualityNameDdl" name="videoQualityNameDdl" ref={videoQualityNameDdl}>
-                            <option value="360">360p</option>
-                            <option value="480">480p</option>
-                            <option value="720">720p</option>
-                            <option value="1080">1080p</option>
-                            <option value="1081">1080 Ultra</option>
-                            <option value="2160">2K</option>
-                            <option value="4320">4K</option>
-                        </select>
-
-                        <label htmlFor="videoQualityUrlTxt">Video Quality Url:</label>
-                        <input 
-                            type="text"
-                            id="videoQualityUrlTxt"
-                            name="videoQualityUrlTxt"
-                            ref={videoQualityUrlTxt} />
-
-                        <label htmlFor="isHlsHdRezka">Is Hls HdRezka:</label>
-                        <input
-                            type="checkbox"
-                            id="isHlsHdRezka"
-                            name="isHlsHdRezka"
-                            ref={isHlsHdRezka}
-                            />
-
-                        <button onClick={onAddVideoQualityClick}>Add Video Quality</button>
-                    </div>
+                <div className={"search-movies-container" + (isSearchMoviePageShow ? "" : " hidden-page")}>
+                    <AnimeListComponent onMovieEpisodeSelected={onMovieEpisodeSelected} onBackToRoomClick={onBackToRoomClick}></AnimeListComponent>
                 </div>
             </div>
             :
             ""
             }
-
-            <div className='video-playlist'>
-            { videos.map((video, i) => {                 
-                return (
-                <div key={video.id} className='video-playlist-item'>
-                    <div onClick={onVideoNameClick} className={ (video.id == currentVideoId ? 'selected' : '') + ' video-name'}>{video.name}</div>
-                    <div className={ (video.id == currentVideoId ? '' : 'dont-show') + ' video-quality-list'}>
-                    { qualities.sort((a,b) => sortVideoQualityModel(a,b)).map((quality, i) => {
-                    if(quality.videoId == video.id) return (    
-                        <div key={quality.id} className={(quality.id == currentVideoQualityId ? 'selected' : '') + ' video-quality-item'} onClick={(e) => onVideoQualityClick(quality) }>
-                            <div className='video-quality-name'>{getDisplayName(quality)}</div>
-                        </div>
-                    )})}
-                    </div>
-                </div>
-                )})}
-            </div>
         </>
     )
 };

@@ -1,0 +1,1 @@
+export const BASE_REZKA_SCRAPPER_URL = "https://kozachok.monster/scrapper/";

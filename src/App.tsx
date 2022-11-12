@@ -3,6 +3,7 @@ import React from 'react';
 import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import MainPage from './pages/MainPage';
 import Login from './pages/Login';
+import AnimeListComponent from './pages/AnimeList';
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Login />} />
             <Route path="/video" element={<MainPage />} />
+            {/* <Route path="/animes" element={<AnimeListComponent />} /> */}
           </Routes>  
         </div>
       </Router>
