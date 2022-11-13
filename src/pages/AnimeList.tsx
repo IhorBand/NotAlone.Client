@@ -84,7 +84,7 @@ const AnimeListComponent = (props : AnimeListComponentProps) => {
     const loadMovies = () => {
         setIsLoading(true);
         if(isSearchOpened) {
-            searchMovies(searchQuery, pageIndex).then((response) => {
+            searchMovies(encodeURIComponent(searchQuery), pageIndex).then((response) => {
                 let models = response.data as VideoInformationModel[];
                 setAnimeList(models);
                 setIsLoading(false);
@@ -229,7 +229,13 @@ const AnimeListComponent = (props : AnimeListComponentProps) => {
                 ep.stream = selectedStreams[i];
                 ep.movieName = selectedFilmInfo.VideoName;
                 ep.videoId = selectedFilmInfo.VideoID;
-                selectedEpisodes.push(ep);
+                if(ep.stream && ep.stream !== undefined 
+                    && ep.stream.episode && ep.stream.episode !== undefined
+                    && ep.stream.season && ep.stream.season !== undefined) {
+                    selectedEpisodes.push(ep);
+                } else {
+                    alert('Something went wrong. Please, try to add episode again.');
+                }
             }
 
             props.onMovieEpisodeSelected(selectedEpisodes);
@@ -255,11 +261,10 @@ const AnimeListComponent = (props : AnimeListComponentProps) => {
 
     const onSearchClick = () => {
         if(searchQueryTxt && searchQueryTxt.current && searchQueryTxt.current.value && searchQueryTxt.current.value.trim() != "") {
-            let param = encodeURIComponent(searchQueryTxt.current.value);
             setPageIndex(1);
-            setSearchQuery(param);
+            setSearchQuery(searchQueryTxt.current.value);
             setIsLoading(true);
-            searchMovies(param, 1).then((response) => {
+            searchMovies(encodeURIComponent(searchQueryTxt.current.value), 1).then((response) => {
                 let models = response.data as VideoInformationModel[];
                 setAnimeList(models);
                 setIsLoading(false);

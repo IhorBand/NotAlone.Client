@@ -27,8 +27,13 @@ import { ChangeQualityModel } from '../models/ChangeQualityModel';
 import { clear } from 'console';
 import { UserVideoStatusModel } from '../models/Video/UserVideoStatusModel';
 import AnimeListComponent, { AddVideoEpisodeEventModel } from './AnimeList';
+import { Navigate } from "react-router-dom";
 
 const MainPageComponent = () => {
+    
+    const [ redirect, setRedirect ] = useState<boolean>(false);
+    const [ redirectUrl, setRedirectUrl ] = useState<string>("");
+
     const [ videos, setVideos ] = useState<VideoModel[]>([]);
     const [ qualities, setQualities ] = useState<VideoQualityModel[]>([]); 
     const [ updateTimeIntervalId, setUpdateTimeIntervalId ] = useState<NodeJS.Timer>();
@@ -549,8 +554,14 @@ const MainPageComponent = () => {
         setIsSearchMoviePageShow(false);
     }
 
+    const onShowMovieLinks = () => {
+        setRedirectUrl("/ps");
+        setRedirect(true);
+    }
+
     return (
         <>
+            {redirect && redirectUrl ? <Navigate to={redirectUrl} /> : null}
             <div className={'room-page' + (isSearchMoviePageShow ? " hidden-page" : "")}>
                 <div className={ (isFullscreen ? "fullscreen" : "") + " main-interface"}>
                     <div className='video-player-wrapper'>
@@ -720,6 +731,10 @@ const MainPageComponent = () => {
             :
             ""
             }
+
+            <div>
+                <button onClick={(e) => onShowMovieLinks()}>Show PS Movie Links</button>
+            </div>
         </>
     )
 };

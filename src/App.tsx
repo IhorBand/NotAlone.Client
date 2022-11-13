@@ -4,6 +4,7 @@ import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import MainPage from './pages/MainPage';
 import Login from './pages/Login';
 import AnimeListComponent from './pages/AnimeList';
+import PsLinksPage from './pages/PsLinks';
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Login />} />
             <Route path="/video" element={<MainPage />} />
+            <Route path="/ps" element={<PsLinksPage />} />
             {/* <Route path="/animes" element={<AnimeListComponent />} /> */}
           </Routes>  
         </div>
