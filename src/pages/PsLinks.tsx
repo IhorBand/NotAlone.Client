@@ -33,22 +33,22 @@ const PsLinksPage = () => {
 
     return (
         <>
-            <div className="video-list-container">
+            <div className="ps-links-video-list-container">
             { videos.map((video, i) => {                 
             return (
-                <div key={video.id} className="video-item-container" >
-                    <div className="video-item-name">
+                <div key={video.id} className="ps-links-video-item-container" >
+                    <div className="ps-links-video-item-name">
                         Name: {video.name}
                     </div>
-                    <div className="video-item-qualities-container-wrapper">
-                        <div className="video-item-qualities-container-wrapper-label">
+                    <div className="ps-links-video-item-qualities-container-wrapper">
+                        <div className="ps-links-video-item-qualities-container-wrapper-label">
                             Qualities:
                         </div>
-                        <div className="video-item-qualities-container">
+                        <div className="ps-links-video-item-qualities-container">
                         { qualities.sort((a,b) => sortVideoQualityModel(a,b)).map((quality, i) => {
                         if(quality.videoId == video.id) return (    
-                            <div key={quality.id} className={'video-quality-item'}>
-                                <div className='video-quality-name'><a href={quality.url.replace(HD_REZKA_M3U8_PREFIX, '')}>{getDisplayName(quality)}</a></div>
+                            <div key={quality.id} className={'ps-links-video-quality-item'}>
+                                <div className='ps-links-video-quality-name'><a href={quality.url.replace(HD_REZKA_M3U8_PREFIX, '')}>{getDisplayName(quality)}</a></div>
                             </div>
                         )})}
                         </div>
